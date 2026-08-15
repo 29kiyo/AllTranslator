@@ -15,10 +15,10 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.29kiyo.alltranslator.fabric.AllTranslatorFabric"
+      "com.kiyo.alltranslator.fabric.AllTranslatorFabric"
     ],
     "client": [
-      "com.29kiyo.alltranslator.fabric.client.AllTranslatorFabricClient"
+      "com.kiyo.alltranslator.fabric.client.AllTranslatorFabricClient"
     ]
   },
   "mixins": [

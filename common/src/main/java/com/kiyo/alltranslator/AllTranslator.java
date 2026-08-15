@@ -1,4 +1,4 @@
-package com.29kiyo.alltranslator;
+package com.kiyo.alltranslator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

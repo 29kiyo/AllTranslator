@@ -1,6 +1,6 @@
 {
   "required": true,
-  "package": "com.29kiyo.alltranslator.mixin",
+  "package": "com.kiyo.alltranslator.mixin",
   "compatibilityLevel": "JAVA_25",
   "minVersion": "0.8",
   "client": [

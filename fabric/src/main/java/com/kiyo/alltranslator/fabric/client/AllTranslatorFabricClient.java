@@ -1,8 +1,8 @@
-package com.29kiyo.alltranslator.fabric.client;
+package com.kiyo.alltranslator.fabric.client;
 
 import net.fabricmc.api.ClientModInitializer;
 
-import com.29kiyo.alltranslator.AllTranslator;
+import com.kiyo.alltranslator.AllTranslator;
 
 public final class AllTranslatorFabricClient implements ClientModInitializer {
     @Override
