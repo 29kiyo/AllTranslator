@@ -1,0 +1,36 @@
+# Gradle
+.gradle/
+build/
+out/
+**/build/
+
+# Loom / Architectury
+.architectury-loom-cache/
+remappedSrc/
+run/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+docs
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# All Translator local data (added starting Phase 2)
+config/alltranslator/credentials.json

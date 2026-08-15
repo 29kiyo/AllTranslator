@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "alltranslator",
+  "version": "${version}",
+  "name": "All Translator",
+  "description": "Translates Minecraft, mod language files, items, tooltips, blocks, entities, UI, chat and FTB Quests text using user-configured external translation APIs.",
+  "authors": [
+    "29kiyo"
+  ],
+  "contact": {
+    "homepage": "https://github.com/29kiyo/alltranslator",
+    "sources": "https://github.com/29kiyo/alltranslator"
+  },
+  "license": "TBD",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.29kiyo.alltranslator.fabric.AllTranslatorFabric"
+    ],
+    "client": [
+      "com.29kiyo.alltranslator.fabric.client.AllTranslatorFabricClient"
+    ]
+  },
+  "mixins": [
+    "alltranslator.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "architectury": ">=21.0.7",
+    "fabric-api": "*"
+  }
+}

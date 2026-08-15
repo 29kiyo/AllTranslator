@@ -1,0 +1,37 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+issueTrackerURL = "https://github.com/29kiyo/alltranslator/issues"
+license = "TBD"
+
+[[mods]]
+modId = "alltranslator"
+version = "${version}"
+displayName = "All Translator"
+authors = "29kiyo"
+description = '''
+Translates Minecraft, mod language files, items, tooltips, blocks, entities, UI, chat and FTB Quests text using user-configured external translation APIs.
+'''
+
+[[dependencies.alltranslator]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.2.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.alltranslator]]
+modId = "minecraft"
+type = "required"
+versionRange = "[26.2,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.alltranslator]]
+modId = "architectury"
+type = "required"
+versionRange = "[21.0.7,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[mixins]]
+config = "alltranslator.mixins.json"
