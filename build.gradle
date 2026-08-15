@@ -34,6 +34,7 @@ subprojects {
 
     dependencies {
         minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
+        compileOnly 'com.google.code.gson:gson:2.10.1'
     }
 
     java {

@@ -1,7 +1,7 @@
 package com.kiyo.alltranslator.fabric;
 
 import net.fabricmc.api.ModInitializer;
-
+import net.fabricmc.loader.api.FabricLoader;
 import com.kiyo.alltranslator.AllTranslator;
 
 public final class AllTranslatorFabric implements ModInitializer {
@@ -10,10 +10,8 @@ public final class AllTranslatorFabric implements ModInitializer {
         // This code runs as soon as Minecraft is in a mod-load-ready state.
         // However, some things (like resources) may still be uninitialized.
         // Proceed with mild caution.
-
         AllTranslator.LOGGER.info("Loading {} on Fabric", AllTranslator.MOD_NAME);
-
         // Run our common setup.
-        AllTranslator.init();
+        AllTranslator.init(FabricLoader.getInstance().getConfigDir().resolve(AllTranslator.MOD_ID));
     }
 }
