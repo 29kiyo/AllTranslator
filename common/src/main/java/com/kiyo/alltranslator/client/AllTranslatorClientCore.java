@@ -3,6 +3,7 @@ package com.kiyo.alltranslator.client;
 import com.kiyo.alltranslator.AllTranslator;
 import com.kiyo.alltranslator.AllTranslatorCore;
 import com.kiyo.alltranslator.text.TranslatableTextInterceptor;
+import com.kiyo.alltranslator.text.ChatTranslationCoordinator;
 
 /**
  * Client-only bootstrap for Phase 4 text-interception hooks.
@@ -47,7 +48,15 @@ public final class AllTranslatorClientCore {
 
         ItemTooltipTranslationHook.register(tooltipInterceptor);
 
+        // Phase 5: chat translation. Loader modules (fabric/neoforge) register the
+        // actual receive-event listener and call AllTranslatorCore.chatTranslationCoordinator()
+        // once this returns, since Fabric API's message events and NeoForge's
+        // ClientChatReceivedEvent are not exposed through Architectury's common event bus.
+        ChatTranslationCoordinator chatTranslationCoordinator = new ChatTranslationCoordinator(
+                AllTranslatorCore.translationService(), AllTranslatorCore.languageResolver(), AllTranslatorCore.configManager());
+        AllTranslatorCore.installChatTranslationCoordinator(chatTranslationCoordinator);
+
         AllTranslator.LOGGER.info("{} client-side text translation hooks installed "
-                + "(item tooltip: event-based, item/entity name: Mixin-based)", AllTranslator.MOD_NAME);
+                + "(item tooltip: event-based, item/entity name: Mixin-based, chat: coordinator ready)", AllTranslator.MOD_NAME);
     }
 }

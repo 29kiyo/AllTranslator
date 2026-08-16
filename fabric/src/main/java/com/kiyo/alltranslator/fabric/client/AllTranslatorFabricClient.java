@@ -9,5 +9,6 @@ public final class AllTranslatorFabricClient implements ClientModInitializer {
     public void onInitializeClient() {
         AllTranslator.LOGGER.info("Loading {} Fabric client entrypoint", AllTranslator.MOD_NAME);
         AllTranslatorClientCore.init();
+        FabricChatTranslationHook.register();
     }
 }

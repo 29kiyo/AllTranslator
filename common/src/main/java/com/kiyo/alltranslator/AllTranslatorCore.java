@@ -16,6 +16,7 @@ import com.kiyo.alltranslator.service.CacheManager;
 import com.kiyo.alltranslator.service.PendingRequestMap;
 import com.kiyo.alltranslator.service.TranslationService;
 import com.kiyo.alltranslator.text.TranslatableTextInterceptor;
+import com.kiyo.alltranslator.text.ChatTranslationCoordinator;
 
 import java.net.http.HttpClient;
 import java.nio.file.Path;
@@ -53,6 +54,10 @@ public final class AllTranslatorCore {
     private static TranslatableTextInterceptor tooltipInterceptor;
     private static TranslatableTextInterceptor itemNameInterceptor;
     private static TranslatableTextInterceptor entityNameInterceptor;
+
+    // Phase 5: installed only by AllTranslatorClientCore#init() (client-side only),
+    // same null-on-dedicated-server guarantee as the interceptors above.
+    private static ChatTranslationCoordinator chatTranslationCoordinator;
 
     private AllTranslatorCore() {}
 
@@ -133,6 +138,13 @@ public final class AllTranslatorCore {
     public static TranslatableTextInterceptor tooltipInterceptor() { return tooltipInterceptor; }
     public static TranslatableTextInterceptor itemNameInterceptor() { return itemNameInterceptor; }
     public static TranslatableTextInterceptor entityNameInterceptor() { return entityNameInterceptor; }
+
+    /** Called only from AllTranslatorClientCore#init() (client-side only). */
+    public static synchronized void installChatTranslationCoordinator(ChatTranslationCoordinator coordinator) {
+        chatTranslationCoordinator = coordinator;
+    }
+
+    public static ChatTranslationCoordinator chatTranslationCoordinator() { return chatTranslationCoordinator; }
 
     public static void shutdown() {
         if (executor != null) executor.shutdown();

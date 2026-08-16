@@ -4,8 +4,12 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.loading.FMLPaths;
+import net.neoforged.neoforge.client.event.ClientChatReceivedEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import com.kiyo.alltranslator.AllTranslator;
+import com.kiyo.alltranslator.AllTranslatorCore;
 import com.kiyo.alltranslator.client.AllTranslatorClientCore;
+import com.kiyo.alltranslator.text.ChatTranslationCoordinator;
 
 @Mod(AllTranslator.MOD_ID)
 public final class AllTranslatorNeoForge {
@@ -21,5 +25,19 @@ public final class AllTranslatorNeoForge {
 
     private void onClientSetup(FMLClientSetupEvent event) {
         AllTranslatorClientCore.init();
+        // Phase 5: chat translation. Registered here (not in a static field / at
+        // construction time) for the same reason as AllTranslatorClientCore.init():
+        // this must only ever run on the physical client.
+        NeoForge.EVENT_BUS.addListener(this::onClientChatReceived);
+    }
+
+    private void onClientChatReceived(ClientChatReceivedEvent.Player event) {
+        // Listen-only: never cancels/replaces the event synchronously. Vanilla
+        // displays the original message untouched; ChatTranslationCoordinator
+        // patches it in place later once the async translation completes.
+        ChatTranslationCoordinator coordinator = AllTranslatorCore.chatTranslationCoordinator();
+        if (coordinator != null) {
+            coordinator.onPlayerChatReceived(event.getPlayerChatMessage(), event.getBoundChatType());
+        }
     }
 }
