@@ -15,6 +15,7 @@ import com.kiyo.alltranslator.service.ApiManager;
 import com.kiyo.alltranslator.service.CacheManager;
 import com.kiyo.alltranslator.service.PendingRequestMap;
 import com.kiyo.alltranslator.service.TranslationService;
+import com.kiyo.alltranslator.text.TranslatableTextInterceptor;
 
 import java.net.http.HttpClient;
 import java.nio.file.Path;
@@ -25,7 +26,9 @@ import java.util.concurrent.Executors;
 import com.kiyo.alltranslator.AllTranslator;
 
 /**
- * Loader-agnostic wiring for the Translation Core (Phase 2) and Language Files (Phase 3).
+ * Loader-agnostic wiring for the Translation Core (Phase 2), Language Files (Phase 3),
+ * and Minecraft Text hooks (Phase 4 - see AllTranslatorClientCore for the client-only
+ * half of Phase 4's wiring).
  * Each loader module calls init(Path) once during common mod init, e.g.:
  *   Fabric:   AllTranslatorCore.init(FabricLoader.getInstance().getConfigDir().resolve("alltranslator"));
  *   NeoForge: AllTranslatorCore.init(FMLPaths.CONFIGDIR.get().resolve("alltranslator"));
@@ -43,6 +46,13 @@ public final class AllTranslatorCore {
     private static ExistingTranslationChecker existingTranslationChecker;
     private static LocalizedTextResolver localizedTextResolver;
     private static ExecutorService executor;
+
+    // Phase 4: installed only by AllTranslatorClientCore#init() (client-side only).
+    // Remain null on dedicated servers, which is what keeps ItemStackMixin/EntityMixin
+    // safe no-ops on the server per ARCHITECTURE.md §9.
+    private static TranslatableTextInterceptor tooltipInterceptor;
+    private static TranslatableTextInterceptor itemNameInterceptor;
+    private static TranslatableTextInterceptor entityNameInterceptor;
 
     private AllTranslatorCore() {}
 
@@ -109,6 +119,20 @@ public final class AllTranslatorCore {
     public static CustomLanguageFileManager customLanguageFileManager() { return customLanguageFileManager; }
     public static ExistingTranslationChecker existingTranslationChecker() { return existingTranslationChecker; }
     public static LocalizedTextResolver localizedTextResolver() { return localizedTextResolver; }
+
+    /** Called only from AllTranslatorClientCore#init() (client-side only). */
+    public static synchronized void installClientTextInterceptors(
+            TranslatableTextInterceptor tooltip,
+            TranslatableTextInterceptor itemName,
+            TranslatableTextInterceptor entityName) {
+        tooltipInterceptor = tooltip;
+        itemNameInterceptor = itemName;
+        entityNameInterceptor = entityName;
+    }
+
+    public static TranslatableTextInterceptor tooltipInterceptor() { return tooltipInterceptor; }
+    public static TranslatableTextInterceptor itemNameInterceptor() { return itemNameInterceptor; }
+    public static TranslatableTextInterceptor entityNameInterceptor() { return entityNameInterceptor; }
 
     public static void shutdown() {
         if (executor != null) executor.shutdown();

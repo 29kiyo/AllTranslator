@@ -1,14 +1,13 @@
 package com.kiyo.alltranslator.fabric.client;
 
 import net.fabricmc.api.ClientModInitializer;
-
 import com.kiyo.alltranslator.AllTranslator;
+import com.kiyo.alltranslator.client.AllTranslatorClientCore;
 
 public final class AllTranslatorFabricClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        // This entrypoint is suitable for setting up client-specific logic,
-        // such as translation rendering hooks (added starting Phase 4).
         AllTranslator.LOGGER.info("Loading {} Fabric client entrypoint", AllTranslator.MOD_NAME);
+        AllTranslatorClientCore.init();
     }
 }
