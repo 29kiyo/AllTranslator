@@ -138,6 +138,10 @@ public final class AllTranslatorCore {
         serverChatTranslationCoordinator = new ServerChatTranslationCoordinator(translationService, perPlayerLanguageResolver);
         WorldCacheConnector.install(cacheManager);
 
+        // Phase 7: FTB Quests optional compatibility (detection-only skeleton; see
+        // compat/ftbquests/FtbQuestsCompat.java for why no real hooks exist yet).
+        com.kiyo.alltranslator.compat.ftbquests.FtbQuestsCompat.reportStatus();
+
         AllTranslator.LOGGER.info("All Translator translation core initialized (" + config.apis.size() + " API config(s) loaded)");
     }
 

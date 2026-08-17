@@ -19,6 +19,9 @@
     ],
     "client": [
       "com.kiyo.alltranslator.fabric.client.AllTranslatorFabricClient"
+    ],
+    "modmenu": [
+      "com.kiyo.alltranslator.fabric.client.AllTranslatorModMenuIntegration"
     ]
   },
   "mixins": [
