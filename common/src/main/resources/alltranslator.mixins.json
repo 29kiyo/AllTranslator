@@ -8,7 +8,9 @@
     "EntityMixin",
     "ChatComponentAccessor"
   ],
-  "mixins": [],
+  "mixins": [
+    "PlayerListMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

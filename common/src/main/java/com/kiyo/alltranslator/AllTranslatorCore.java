@@ -11,12 +11,16 @@ import com.kiyo.alltranslator.lang.LocalizedTextResolver;
 import com.kiyo.alltranslator.lang.MinecraftClientLanguageSupplier;
 import com.kiyo.alltranslator.lang.MinecraftLanguageDataSource;
 import com.kiyo.alltranslator.provider.ProviderFactory;
+import com.kiyo.alltranslator.server.PerPlayerLanguageResolver;
+import com.kiyo.alltranslator.server.PlayerTranslationSettingsManager;
+import com.kiyo.alltranslator.server.WorldCacheConnector;
 import com.kiyo.alltranslator.service.ApiManager;
 import com.kiyo.alltranslator.service.CacheManager;
 import com.kiyo.alltranslator.service.PendingRequestMap;
 import com.kiyo.alltranslator.service.TranslationService;
 import com.kiyo.alltranslator.text.TranslatableTextInterceptor;
 import com.kiyo.alltranslator.text.ChatTranslationCoordinator;
+import com.kiyo.alltranslator.text.ServerChatTranslationCoordinator;
 
 import java.net.http.HttpClient;
 import java.nio.file.Path;
@@ -28,8 +32,11 @@ import com.kiyo.alltranslator.AllTranslator;
 
 /**
  * Loader-agnostic wiring for the Translation Core (Phase 2), Language Files (Phase 3),
- * and Minecraft Text hooks (Phase 4 - see AllTranslatorClientCore for the client-only
- * half of Phase 4's wiring).
+ * Minecraft Text hooks (Phase 4), Chat (Phase 5), and Server support (Phase 6 - see
+ * AllTranslatorClientCore for the client-only half of Phase 4/5's wiring; Phase 6's
+ * server-side pieces below are wired unconditionally here since they're all common,
+ * loader-agnostic, side-agnostic classes that are safe no-ops until explicitly enabled in
+ * config.json).
  * Each loader module calls init(Path) once during common mod init, e.g.:
  *   Fabric:   AllTranslatorCore.init(FabricLoader.getInstance().getConfigDir().resolve("alltranslator"));
  *   NeoForge: AllTranslatorCore.init(FMLPaths.CONFIGDIR.get().resolve("alltranslator"));
@@ -58,6 +65,18 @@ public final class AllTranslatorCore {
     // Phase 5: installed only by AllTranslatorClientCore#init() (client-side only),
     // same null-on-dedicated-server guarantee as the interceptors above.
     private static ChatTranslationCoordinator chatTranslationCoordinator;
+
+    // Phase 6: server support. Unlike Phase 4/5's client-only fields above, these are wired
+    // unconditionally in init() below (both physical sides) because
+    // PlayerTranslationSettingsManager/PerPlayerLanguageResolver/ServerChatTranslationCoordinator
+    // reference only common (non-client-only) Minecraft classes (ServerPlayer, MinecraftServer)
+    // and are harmless if never exercised - e.g. on a pure remote-play client,
+    // PlayerListMixin's target class simply never runs locally, so
+    // serverChatTranslationCoordinator() is never actually invoked even though the reference
+    // itself is non-null.
+    private static PlayerTranslationSettingsManager playerTranslationSettingsManager;
+    private static PerPlayerLanguageResolver perPlayerLanguageResolver;
+    private static ServerChatTranslationCoordinator serverChatTranslationCoordinator;
 
     private AllTranslatorCore() {}
 
@@ -111,6 +130,14 @@ public final class AllTranslatorCore {
 
         localizedTextResolver = new LocalizedTextResolver(existingTranslationChecker, translationService, languageResolver);
 
+        // Phase 6: server support. See ARCHITECTURE.md §9 (opt-in server-side chat
+        // translation) and §8.2 (persistent cache world-save path).
+        playerTranslationSettingsManager = new PlayerTranslationSettingsManager(configDir);
+        playerTranslationSettingsManager.load();
+        perPlayerLanguageResolver = new PerPlayerLanguageResolver(configManager, playerTranslationSettingsManager);
+        serverChatTranslationCoordinator = new ServerChatTranslationCoordinator(translationService, perPlayerLanguageResolver);
+        WorldCacheConnector.install(cacheManager);
+
         AllTranslator.LOGGER.info("All Translator translation core initialized (" + config.apis.size() + " API config(s) loaded)");
     }
 
@@ -145,6 +172,11 @@ public final class AllTranslatorCore {
     }
 
     public static ChatTranslationCoordinator chatTranslationCoordinator() { return chatTranslationCoordinator; }
+
+    // Phase 6 accessors (both physical sides; see field comments above).
+    public static PlayerTranslationSettingsManager playerTranslationSettingsManager() { return playerTranslationSettingsManager; }
+    public static PerPlayerLanguageResolver perPlayerLanguageResolver() { return perPlayerLanguageResolver; }
+    public static ServerChatTranslationCoordinator serverChatTranslationCoordinator() { return serverChatTranslationCoordinator; }
 
     public static void shutdown() {
         if (executor != null) executor.shutdown();
