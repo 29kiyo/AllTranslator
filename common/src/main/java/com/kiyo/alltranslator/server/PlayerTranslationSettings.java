@@ -21,8 +21,14 @@ public final class PlayerTranslationSettings {
 
     public static final PlayerTranslationSettings DEFAULT = new PlayerTranslationSettings(null, null);
 
-    private final Boolean enabled;
-    private final String languageOverride;
+    // Not final: Gson populates these fields directly via reflection when deserializing
+    // player-settings.json (it does not go through the constructor below), which on modern
+    // JVMs otherwise triggers "final field mutated reflectively" warnings (and will be
+    // outright blocked in a future Java release). Immutability is still enforced at the API
+    // level: there are no setters, only the constructor and the getters below - callers
+    // outside this class can't mutate an instance either way.
+    private Boolean enabled;
+    private String languageOverride;
 
     public PlayerTranslationSettings(Boolean enabled, String languageOverride) {
         this.enabled = enabled;

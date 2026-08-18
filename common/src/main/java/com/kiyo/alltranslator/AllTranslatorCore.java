@@ -142,6 +142,14 @@ public final class AllTranslatorCore {
         // compat/ftbquests/FtbQuestsCompat.java for why no real hooks exist yet).
         com.kiyo.alltranslator.compat.ftbquests.FtbQuestsCompat.reportStatus();
 
+        // Phase 9: /alltranslator (alias /at) commands, ARCHITECTURE.md §13. Registered via
+        // Architectury's common CommandRegistrationEvent (verified via javap/sources: fires on
+        // both dedicated servers and the integrated/singleplayer server - same registration
+        // point PlayerListMixin's non-client "mixins" array already relies on being active on
+        // both physical sides).
+        dev.architectury.event.events.common.CommandRegistrationEvent.EVENT.register(
+                (dispatcher, registry, selection) -> com.kiyo.alltranslator.command.CommandHandlers.register(dispatcher));
+
         AllTranslator.LOGGER.info("All Translator translation core initialized (" + config.apis.size() + " API config(s) loaded)");
     }
 
