@@ -6,7 +6,8 @@ import com.kiyo.alltranslator.text.TranslatableTextInterceptor;
 import com.kiyo.alltranslator.text.ChatTranslationCoordinator;
 
 /**
- * Client-only bootstrap for Phase 4 text-interception hooks.
+ * Client-only bootstrap for Phase 4 text-interception hooks, Phase 5 chat translation,
+ * and (Phase 8) the shared config screen's L-keybinding.
  *
  * MUST be called only from a loader's confirmed physical-client entrypoint:
  *   Fabric:   AllTranslatorFabricClient#onInitializeClient
@@ -56,7 +57,14 @@ public final class AllTranslatorClientCore {
                 AllTranslatorCore.translationService(), AllTranslatorCore.languageResolver(), AllTranslatorCore.configManager());
         AllTranslatorCore.installChatTranslationCoordinator(chatTranslationCoordinator);
 
+        // Phase 8: the shared L-keybinding that opens AllTranslatorConfigScreen. Uses
+        // Architectury's common KeyMappingRegistry/ClientTickEvent (verified via javap -
+        // no per-loader split needed), so registering it once here covers both Fabric
+        // and NeoForge exactly like the interceptors/coordinator above.
+        AllTranslatorKeyBindings.register();
+
         AllTranslator.LOGGER.info("{} client-side text translation hooks installed "
-                + "(item tooltip: event-based, item/entity name: Mixin-based, chat: coordinator ready)", AllTranslator.MOD_NAME);
+                + "(item tooltip: event-based, item/entity name: Mixin-based, chat: coordinator ready, "
+                + "config screen: L-key registered)", AllTranslator.MOD_NAME);
     }
 }
