@@ -11,9 +11,11 @@ import java.util.function.Supplier;
  * ARCHITECTURE.md §4. Safe to construct/call on a dedicated server: short-circuits via
  * Platform.getEnvironment() before ever touching the client-only Minecraft class.
  *
- * UNVERIFIED FIELD ACCESS: `options.languageCode` is used here as a public field per the
- * Phase 0 architecture decision. If Loom reports it's not a field (e.g. it's now a getter),
- * paste the compiler error and it'll be corrected against your mappings.
+ * FIELD ACCESS CONFIRMED (Phase 10): `options.languageCode` compiles and has been
+ * exercised without error across every Fabric/NeoForge runClient session from Phase 4
+ * through Phase 9 (client always reported "en_us" in those test environments - a
+ * non-default client language value has not specifically been exercised yet, so treat
+ * that one scenario as still worth a quick manual check, not the field access itself).
  */
 public final class MinecraftClientLanguageSupplier implements Supplier<String> {
 

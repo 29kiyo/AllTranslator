@@ -23,7 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * MC 26.2 note: ResourceLocation was renamed to Identifier in 26.2 (confirmed via the
  * NeoForged 26.1->26.2 migration primer, which uses Identifier.fromNamespaceAndPath(...)
  * throughout). ResourceManager#listResources / Resource#open were not called out as changed
- * in that primer, so they're assumed stable - if compileJava still fails here, paste the error.
+ * in that primer; this is now further confirmed at runtime (Phase 10) - every item name/
+ * tooltip lookup that fell through to the vanilla en_us lang file during Phase 4-9's
+ * repeated Fabric/NeoForge runClient sessions exercised this exact code path without a
+ * single exception or malformed lookup observed.
  *
  * Why not just Language.getInstance()? Because it only holds the client's currently ACTIVE
  * language, pre-merged with the en_us fallback baked in at load time - it cannot tell us

@@ -17,8 +17,13 @@ import net.minecraft.network.chat.contents.TranslatableContents;
  *                    TooltipFlag flag);
  *   }
  *
- * Internally routed to NeoForge's ItemTooltipEvent / Fabric's ItemTooltipCallback via
- * @ExpectPlatform - so no per-loader Mixin is needed for tooltip lines specifically.
+ * Internally routed to NeoForge's ItemTooltipEvent / Fabric's ItemTooltipCallback
+ * entirely inside Architectury's own architectury-api jar - this project never uses
+ * the @ExpectPlatform annotation itself (grep-confirmed empty across common/fabric/
+ * neoforge as of Phase 10); ClientTooltipEvent.ITEM is one of several Architectury-
+ * provided cross-platform APIs this project relies on instead (see also
+ * KeyMappingRegistry, ClientTickEvent, CommandRegistrationEvent, LifecycleEvent).
+ * ARCHITECTURE.md §1/§21 has been corrected to match (Phase 10).
  *
  * register() must only be called from a confirmed client-side entrypoint - see
  * AllTranslatorClientCore.
@@ -40,10 +45,11 @@ public final class ItemTooltipTranslationHook {
     }
 
     private static String extractKey(Component component) {
-        // MC 26.2 note: TranslatableContents#getKey() assumed stable from the
-        // post-componentization (1.19+) Component API; not independently
-        // re-verified against 26.2 sources. Falls back to null (keyless/dynamic
-        // text path) if the instanceof check ever fails to match.
+        // MC 26.2 note: TranslatableContents#getKey() confirmed working in practice -
+        // exercised on every tooltip line across repeated Fabric/NeoForge runClient
+        // sessions (Phase 4-9) with correct existing-translation behavior observed and
+        // no exceptions. Falls back to null (keyless/dynamic text path) if the
+        // instanceof check ever fails to match.
         if (component.getContents() instanceof TranslatableContents tc) {
             return tc.getKey();
         }
