@@ -1,8 +1,10 @@
 package com.kiyo.alltranslator.client.gui;
 
 import com.kiyo.alltranslator.AllTranslatorCore;
+import com.kiyo.alltranslator.api.ProviderType;
 import com.kiyo.alltranslator.config.ConfigManager;
 import com.kiyo.alltranslator.config.ConfigModel;
+import com.kiyo.alltranslator.service.TranslationApiConfig;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
@@ -11,38 +13,25 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
+import java.util.Optional;
+import java.util.UUID;
+
 /**
  * Phase 8: the single shared configuration screen ARCHITECTURE.md §11/§15 call for.
- * Both the L-keybinding (AllTranslatorKeyBindings, common) and Mod Menu's "configure"
- * button (fabric AllTranslatorModMenuIntegration) open exactly this class, backed by
- * the same ConfigManager instance (AllTranslatorCore.configManager()) - there is no
- * separate "Mod Menu screen" any more (AllTranslatorModMenuPlaceholderScreen is
- * removed as part of this Phase).
  *
- * Screen/GuiGraphicsExtractor/Button/CycleButton/EditBox APIs verified against MC
- * 26.2's actual merged jar via javap (not guessed) - CLAUDE.md §3. In particular:
- * extractRenderState(GuiGraphicsExtractor, ...) replaces the pre-26.2 render(...),
- * and CycleButton/EditBox expose plain getValue()/getValue() accessors that let us
- * batch-apply changes on Done rather than mutating the live ConfigModel per keystroke.
- *
- * Layout: each field is a label row drawn in extractRenderState directly above its
- * widget (same X column, stacked vertically) rather than a label-left/widget-right
- * layout - a label-left layout was tried first and long labels (e.g. "Dynamic Text
- * Cache TTL (days)") visibly overlapped the widget column at common GUI scales, found
- * during manual testing. Stacking removes any label-length-dependent overlap risk.
- *
- * Toggle widgets (CycleButton) behave like vanilla's Options screens: changing them
- * is visible immediately in the widget itself, but nothing is written to config.json
- * (or reloaded into ApiManager) until Done is pressed or the screen is closed.
- *
- * Known limitation (documented, not a bug): editing memoryCacheCapacity /
- * dynamicTextCacheTtlDays here only updates config.json. CacheManager's actual
- * capacity-mutation API was not verified against source during this phase (out of
- * scope for Phase 8 - Config UI), so a live re-wire is intentionally not attempted;
- * the new values take effect on next launch. This mirrors the project's existing
- * practice of never invoking unverified APIs (CLAUDE.md §3/§21).
+ * Phase 11: reverted the short-lived "No-Key Providers" sub-screen (which supported
+ * both Google Translate Free and LibreTranslate side by side) back to a single
+ * on/off toggle here, after LibreTranslate's public instance turned out to require
+ * a paid API key (confirmed by hand - HTTP 400 "Visit https://portal.libretranslate.com
+ * to get an API key" from the actual endpoint) and was dropped. Google Translate
+ * (Free) is still an ordinary TranslationApiConfig entry in ConfigModel#apis -
+ * editable/reorderable in "Manage Translation APIs" like any other API - this toggle
+ * is just a convenience that creates-or-flips-enabled on that one entry rather than
+ * making the user go find it in the API list.
  */
 public final class AllTranslatorConfigScreen extends Screen {
+
+    private static final String GOOGLE_FREE_ENDPOINT = "https://translate.googleapis.com/translate_a/single";
 
     private final Screen parent;
     private final ConfigManager configManager;
@@ -55,6 +44,7 @@ public final class AllTranslatorConfigScreen extends Screen {
     private int labelServerChatY;
     private int labelMemCacheY;
     private int labelTtlY;
+    private int labelGoogleFreeY;
     private int apiCountLabelY;
     private int apiButtonY;
 
@@ -63,6 +53,7 @@ public final class AllTranslatorConfigScreen extends Screen {
     private CycleButton<Boolean> serverChatButton;
     private EditBox memoryCacheBox;
     private EditBox ttlBox;
+    private CycleButton<Boolean> googleFreeButton;
 
     public AllTranslatorConfigScreen(Screen parent) {
         super(Component.literal("All Translator"));
@@ -71,21 +62,25 @@ public final class AllTranslatorConfigScreen extends Screen {
         this.model = configManager.model();
     }
 
+    private Optional<TranslationApiConfig> findGoogleFree() {
+        return model.apis.stream().filter(c -> c.provider() == ProviderType.GOOGLE_WEB_FREE).findFirst();
+    }
+
     @Override
     protected void init() {
         fieldX = this.width / 2 - 100;
         fieldWidth = 200;
-        int y = 30;
-        int blockHeight = 36;
+        int y = 22;
+        int blockHeight = 30;
 
         labelTranslationY = y;
         translationEnabledButton = CycleButton.onOffBuilder(model.translationEnabled)
-                .create(fieldX, y + 11, fieldWidth, 20, Component.literal("Translation"));
+                .create(fieldX, y + 10, fieldWidth, 20, Component.literal("Translation"));
         this.addRenderableWidget(translationEnabledButton);
         y += blockHeight;
 
         labelLanguageY = y;
-        targetLanguageBox = new EditBox(this.font, fieldX, y + 11, fieldWidth, 20, Component.literal("Target Language"));
+        targetLanguageBox = new EditBox(this.font, fieldX, y + 10, fieldWidth, 20, Component.literal("Target Language"));
         targetLanguageBox.setMaxLength(16);
         targetLanguageBox.setHint(Component.literal("auto"));
         targetLanguageBox.setValue(model.forcedTargetLanguage == null ? "" : model.forcedTargetLanguage);
@@ -94,26 +89,33 @@ public final class AllTranslatorConfigScreen extends Screen {
 
         labelServerChatY = y;
         serverChatButton = CycleButton.onOffBuilder(model.serverSideChatTranslationEnabled)
-                .create(fieldX, y + 11, fieldWidth, 20, Component.literal("Server Chat"));
+                .create(fieldX, y + 10, fieldWidth, 20, Component.literal("Server Chat"));
         this.addRenderableWidget(serverChatButton);
         y += blockHeight;
 
         labelMemCacheY = y;
-        memoryCacheBox = new EditBox(this.font, fieldX, y + 11, fieldWidth, 20, Component.literal("Memory Cache Capacity"));
+        memoryCacheBox = new EditBox(this.font, fieldX, y + 10, fieldWidth, 20, Component.literal("Memory Cache Capacity"));
         memoryCacheBox.setMaxLength(6);
         memoryCacheBox.setValue(String.valueOf(model.memoryCacheCapacity));
         this.addRenderableWidget(memoryCacheBox);
         y += blockHeight;
 
         labelTtlY = y;
-        ttlBox = new EditBox(this.font, fieldX, y + 11, fieldWidth, 20, Component.literal("Dynamic Text Cache TTL (days)"));
+        ttlBox = new EditBox(this.font, fieldX, y + 10, fieldWidth, 20, Component.literal("Dynamic Text Cache TTL (days)"));
         ttlBox.setMaxLength(4);
         ttlBox.setValue(String.valueOf(model.dynamicTextCacheTtlDays));
         this.addRenderableWidget(ttlBox);
-        y += blockHeight + 6;
+        y += blockHeight;
+
+        labelGoogleFreeY = y;
+        boolean googleCurrentlyOn = findGoogleFree().map(TranslationApiConfig::enabled).orElse(false);
+        googleFreeButton = CycleButton.onOffBuilder(googleCurrentlyOn)
+                .create(fieldX, y + 10, fieldWidth, 20, Component.literal("Google Translate (Free)"));
+        this.addRenderableWidget(googleFreeButton);
+        y += blockHeight;
 
         apiCountLabelY = y;
-        apiButtonY = y + 12;
+        apiButtonY = y + 10;
         this.addRenderableWidget(
                 Button.builder(Component.literal("Manage Translation APIs"), button ->
                                 this.minecraft.gui.setScreen(new AllTranslatorApiListScreen(this)))
@@ -123,7 +125,7 @@ public final class AllTranslatorConfigScreen extends Screen {
 
         this.addRenderableWidget(
                 Button.builder(CommonComponents.GUI_DONE, button -> onDone())
-                        .pos(this.width / 2 - 75, this.height - 28)
+                        .pos(this.width / 2 - 75, this.height - 24)
                         .size(150, 20)
                         .build());
     }
@@ -143,16 +145,32 @@ public final class AllTranslatorConfigScreen extends Screen {
         try {
             model.memoryCacheCapacity = Integer.parseInt(memoryCacheBox.getValue().trim());
         } catch (NumberFormatException ignored) {
-            // Keep the previously-saved value; invalid input is silently discarded rather
-            // than crashing the screen (CLAUDE.md has no numeric-validation UX guidance,
-            // this is the conservative choice).
         }
         try {
             model.dynamicTextCacheTtlDays = Integer.parseInt(ttlBox.getValue().trim());
         } catch (NumberFormatException ignored) {
         }
 
+        boolean wantGoogleOn = googleFreeButton.getValue();
+        Optional<TranslationApiConfig> existing = findGoogleFree();
+        if (existing.isPresent()) {
+            existing.get().setEnabled(wantGoogleOn);
+        } else if (wantGoogleOn) {
+            int maxPriority = -1;
+            for (TranslationApiConfig cfg : model.apis) maxPriority = Math.max(maxPriority, cfg.priority());
+            model.apis.add(new TranslationApiConfig(
+                    UUID.randomUUID(), "Google Translate (Free)", ProviderType.GOOGLE_WEB_FREE,
+                    GOOGLE_FREE_ENDPOINT, null, maxPriority + 1, true));
+        }
+
         configManager.save();
+
+        if (AllTranslatorCore.cacheManager() != null) {
+            AllTranslatorCore.cacheManager().setDynamicTextCacheTtlDays(model.dynamicTextCacheTtlDays);
+        }
+        if (AllTranslatorCore.apiManager() != null) {
+            AllTranslatorCore.apiManager().reload(model.apis);
+        }
     }
 
     @Override
@@ -164,13 +182,14 @@ public final class AllTranslatorConfigScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor drawContext, int mouseX, int mouseY, float delta) {
         super.extractRenderState(drawContext, mouseX, mouseY, delta);
-        drawContext.centeredText(this.font, this.title, this.width / 2, 12, 0xFFFFFFFF);
+        drawContext.centeredText(this.font, this.title, this.width / 2, 8, 0xFFFFFFFF);
 
         drawContext.text(this.font, "Translation Enabled", fieldX, labelTranslationY, 0xFFAAAAAA);
         drawContext.text(this.font, "Target Language (blank = auto)", fieldX, labelLanguageY, 0xFFAAAAAA);
         drawContext.text(this.font, "Server-Side Chat Translation", fieldX, labelServerChatY, 0xFFAAAAAA);
         drawContext.text(this.font, "Memory Cache Capacity", fieldX, labelMemCacheY, 0xFFAAAAAA);
         drawContext.text(this.font, "Dynamic Text Cache TTL (days)", fieldX, labelTtlY, 0xFFAAAAAA);
+        drawContext.text(this.font, "Google Translate (Free)", fieldX, labelGoogleFreeY, 0xFFAAAAAA);
 
         int apiCount = model.apis.size();
         drawContext.text(this.font, apiCount + " API configuration(s)", fieldX, apiCountLabelY, 0xFFAAAAAA);

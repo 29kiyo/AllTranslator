@@ -4,6 +4,7 @@ import com.kiyo.alltranslator.api.ApiFailureType;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class ApiState {
     private static final long BASE_COOLDOWN_SECONDS = 30L;
@@ -16,6 +17,25 @@ public final class ApiState {
     private Instant lastSuccess;
     private Instant lastFailure;
     private int consecutiveFailures;
+
+    /**
+     * Phase 11 fix (real-world bug: a burst of ~8 concurrent item-name translation
+     * requests at world join all independently called getOrderedCandidates() before
+     * any of them completed and updated status, so all 8 piled onto the SAME
+     * not-yet-known-bad API before its first failure was even recorded - 8x more
+     * requests than necessary to a config that turns out to be broken, violating
+     * CLAUDE.md §24 "no repeated requests to an API known to be unavailable" in
+     * spirit even though none of the individual calls was itself a "repeat").
+     *
+     * Once an API has a confirmed lastSuccess, this reservation is a no-op (full
+     * concurrency is fine and desirable for a known-healthy API - translating many
+     * different texts in parallel is the normal, wanted case). Only APIs that have
+     * NEVER yet succeeded (freshly configured, or so far only ever failed) require
+     * single-flight probing: the first concurrent caller "wins" the probe and
+     * actually calls the provider; every other concurrent caller for a different
+     * cache key immediately moves on to the next candidate instead of piling on.
+     */
+    private final AtomicBoolean probing = new AtomicBoolean(false);
 
     public ApiState(UUID configId) {
         this.configId = configId;
@@ -33,6 +53,27 @@ public final class ApiState {
         if (status == ApiStatus.DISABLED_PERMANENT) return false;
         if (status == ApiStatus.AVAILABLE) return true;
         return cooldownUntil != null && !Instant.now().isBefore(cooldownUntil);
+    }
+
+    /**
+     * Call before actually invoking this API's provider. Returns true if the caller
+     * may proceed (either the API is already confirmed-working and needs no
+     * reservation, or this caller won the single-flight probe for an unconfirmed
+     * API). Returns false if another concurrent request is already probing this
+     * unconfirmed API - the caller should move on to the next candidate rather than
+     * wait or also call it. MUST be paired with releaseProbe() (in a finally/
+     * whenComplete) whenever this returns true AND a reservation was actually taken
+     * (i.e. lastSuccess was null at the time) - see releaseProbe()'s own no-op-safe
+     * behavior for the confirmed-API case.
+     */
+    public boolean tryReserveProbe() {
+        if (lastSuccess != null) return true; // confirmed-working API: no single-flight needed
+        return probing.compareAndSet(false, true);
+    }
+
+    /** Safe to call unconditionally after an attempt completes, even if tryReserveProbe() took the "already confirmed" branch (then this is just a harmless no-op reset). */
+    public void releaseProbe() {
+        probing.set(false);
     }
 
     public synchronized void recordSuccess() {

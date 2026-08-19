@@ -23,12 +23,18 @@ import java.util.UUID;
  * Security note (CLAUDE.md §10/ARCHITECTURE.md §12): the API-key field is always
  * shown blank when editing an existing entry - the raw key is never read back out
  * of CredentialStore for display. Leaving it blank on Save means "keep the existing
- * key"; typing a new value replaces it. This avoids ever rendering a stored secret
- * back onto the screen.
+ * key" (when editing) or "no key" (when creating, for providers that don't need
+ * one - e.g. GOOGLE_WEB_FREE).
  *
- * Layout: label-above-widget, same reasoning/fix as AllTranslatorConfigScreen (a
- * label-left layout overlapped the widget column for long labels during manual
- * testing).
+ * Layout: label-above-widget, same reasoning/fix as AllTranslatorConfigScreen.
+ *
+ * Phase 11 note: an earlier revision of this class also accepted a "preset"
+ * (provider/name/endpoint) for a NoKeyProvidersScreen shortcut and LibreTranslate
+ * support; both were reverted (LibreTranslate's public instance turned out to
+ * require a paid key). This class is back to its Phase 8 shape - the only
+ * Phase 11-visible change is ProviderType now including GOOGLE_WEB_FREE, which
+ * needs no code change here since the provider CycleButton already iterates
+ * ProviderType.values().
  */
 public final class ApiEditScreen extends Screen {
 
@@ -90,7 +96,9 @@ public final class ApiEditScreen extends Screen {
         apiKeyBox.setMaxLength(512);
         apiKeyBox.setValue("");
         apiKeyBox.setHint(Component.literal(
-                existing != null && existing.credentialId() != null ? "(leave blank to keep current key)" : "required"));
+                existing != null && existing.credentialId() != null
+                        ? "(leave blank to keep current key)"
+                        : "(leave blank if this provider needs no key)"));
         this.addRenderableWidget(apiKeyBox);
         y += blockHeight;
 

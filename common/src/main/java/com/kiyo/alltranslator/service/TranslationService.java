@@ -103,11 +103,26 @@ public final class TranslationService {
             return;
         }
 
+        ApiState state = apiManager.getState(candidate.id());
+        boolean tookReservation = state != null && state.lastSuccess() == null;
+        if (state != null && !state.tryReserveProbe()) {
+            // This API has never yet succeeded, and another concurrent request (for a
+            // different cache key) is already probing it right now. Rather than also
+            // call it (Phase 11 fix - see ApiState#tryReserveProbe javadoc), move on
+            // to the next candidate immediately. That other in-flight probe will
+            // update this API's real status for everyone once it completes.
+            attemptNext(request, candidateIterator, cacheKey, persistable, resultFuture);
+            return;
+        }
+
         String rawKey = credentialStore.getRawKey(candidate.credentialId());
 
         CompletableFuture.supplyAsync(() -> null, asyncExecutor)
                 .thenCompose(v -> provider.translate(request, candidate, rawKey))
                 .whenComplete((result, error) -> {
+                    if (tookReservation && state != null) {
+                        state.releaseProbe();
+                    }
                     if (error == null) {
                         apiManager.recordSuccess(candidate.id());
                         TranslationResult tagged = new TranslationResult(result.translatedText(), request.sourceText(),
@@ -130,9 +145,8 @@ public final class TranslationService {
 
                         if (cause instanceof TranslationException) {
                             long retryAfter = ((TranslationException) cause).retryAfterSeconds();
-                            if (retryAfter > 0) {
-                                ApiState state = apiManager.getState(candidate.id());
-                                if (state != null) state.applyRetryAfter(retryAfter);
+                            if (retryAfter > 0 && state != null) {
+                                state.applyRetryAfter(retryAfter);
                             }
                         }
 

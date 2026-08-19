@@ -95,7 +95,7 @@ public final class AllTranslatorCore {
         apiManager = new ApiManager();
         apiManager.reload(config.apis);
 
-        cacheManager = new CacheManager(config.memoryCacheCapacity);
+        cacheManager = new CacheManager(config.memoryCacheCapacity, config.dynamicTextCacheTtlDays);
 
         executor = Executors.newFixedThreadPool(2, r -> {
             Thread t = new Thread(r, "alltranslator-worker");

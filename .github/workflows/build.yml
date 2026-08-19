@@ -1,0 +1,92 @@
+name: Build and Release
+
+# workflow_dispatch のみ。通常の push では一切トリガーしない。
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.strip.outputs.version }}
+    steps:
+      - name: Validate tag format (vX.Y.Z)
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid tag format: '$TAG'. Expected format: vX.Y.Z (e.g. v1.2.3)"
+            exit 1
+          fi
+          echo "Tag format OK: $TAG"
+
+      - name: Check release does not already exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh api "repos/${{ github.repository }}/releases/tags/${{ inputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::Release ${{ inputs.tag }} already exists."
+            exit 1
+          fi
+          echo "No existing release for ${{ inputs.tag }}, proceeding."
+
+      - name: Strip leading v for mod_version
+        id: strip
+        run: |
+          TAG="${{ inputs.tag }}"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    env:
+      MOD_VERSION: ${{ needs.validate-tag.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # build は check -> test に依存するため、Fabric/NeoForge両方のビルドとテストを1回で実行する
+      - name: Build and test (Fabric + NeoForge)
+        run: ./gradlew build -Pmod_version="$MOD_VERSION" --stacktrace
+
+      - name: Verify expected artifact jars exist
+        run: |
+          FABRIC_JAR="fabric/build/libs/alltranslator-fabric-${MOD_VERSION}.jar"
+          NEOFORGE_JAR="neoforge/build/libs/alltranslator-neoforge-${MOD_VERSION}.jar"
+          for f in "$FABRIC_JAR" "$NEOFORGE_JAR"; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Expected artifact not found: $f"
+              exit 1
+            fi
+          done
+          echo "FABRIC_JAR=$FABRIC_JAR" >> "$GITHUB_ENV"
+          echo "NEOFORGE_JAR=$NEOFORGE_JAR" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release and upload jars
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ inputs.tag }}" \
+            "$FABRIC_JAR" \
+            "$NEOFORGE_JAR" \
+            --title "All Translator ${{ inputs.tag }}" \
+            --generate-notes
