@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Semaphore;
+import java.util.function.BiConsumer;
 import com.kiyo.alltranslator.AllTranslator;
 
 /**
@@ -22,10 +24,35 @@ import com.kiyo.alltranslator.AllTranslator;
  *
  * Existing-translation-file lookup (Phase 3, ExistingTranslationChecker) happens
  * BEFORE this service is ever called - this class only knows about cache/API.
+ *
+ * Phase 13 fix: real-world testing against a local LM Studio server (4 internal
+ * inference slots) showed dozens of simultaneous HTTP requests firing at once
+ * (e.g. opening a large inventory triggers many tooltip translations together),
+ * overwhelming the server and causing a cascade of request timeouts. The cause:
+ * routing through asyncExecutor (a fixed 2-thread pool, see AllTranslatorCore) only
+ * serializes the moment translate() is *invoked* - provider.translate() itself
+ * calls HttpClient#sendAsync, which returns immediately without blocking, so the
+ * executor thread is freed again right away and the next queued translation starts
+ * its own HTTP call almost immediately after. The 2-thread executor was therefore
+ * not actually bounding how many HTTP requests were in flight at once. A Semaphore
+ * (MAX_CONCURRENT_HTTP_REQUESTS permits) now gates actual request dispatch: a
+ * permit is acquired right before provider.translate() is called and released in
+ * whenComplete(), regardless of success/failure, so this bounds true concurrent
+ * in-flight HTTP calls across all APIs combined. Not yet exposed as a config/UI
+ * setting - hardcoded here for now (README documents this as a fixed limit).
  */
 public final class TranslationService {
 
     private static final int CACHE_VERSION = 1;
+
+    /**
+     * Max simultaneous in-flight HTTP translation requests across all configured
+     * APIs. See class Javadoc (Phase 13 fix) for why this exists separately from
+     * asyncExecutor's thread count. 3 is a conservative default chosen to stay
+     * comfortably under a typical local-LLM server's slot count (e.g. LM Studio's
+     * observed default of 4) while still allowing some parallelism for cloud APIs.
+     */
+    private static final int MAX_CONCURRENT_HTTP_REQUESTS = 3;
 
     private final ApiManager apiManager;
     private final CacheManager cacheManager;
@@ -33,6 +60,21 @@ public final class TranslationService {
     private final Map<ProviderType, TranslationProvider> providers;
     private final PendingRequestMap pendingRequests;
     private final Executor asyncExecutor;
+    private final Semaphore inFlightHttpRequests = new Semaphore(MAX_CONCURRENT_HTTP_REQUESTS);
+
+    /**
+     * Phase 13: optional failure listener (API display name, failure type as a
+     * short string) for surfacing translation failures to the user, e.g. as a
+     * toast. Null by default (server/dedicated-server TranslationService instances
+     * never set this). Wired to an actual client-side toast in
+     * AllTranslatorClientCore - this class itself has no client-only dependency,
+     * matching the existing ChatTranslationCoordinator injection pattern.
+     */
+    private volatile BiConsumer<String, String> failureListener;
+
+    public void setFailureListener(BiConsumer<String, String> failureListener) {
+        this.failureListener = failureListener;
+    }
 
     public TranslationService(ApiManager apiManager,
                                CacheManager cacheManager,
@@ -117,9 +159,22 @@ public final class TranslationService {
 
         String rawKey = credentialStore.getRawKey(candidate.credentialId());
 
-        CompletableFuture.supplyAsync(() -> null, asyncExecutor)
+        // Phase 13 fix: acquire a real in-flight-request permit on asyncExecutor
+        // (blocking is fine here - this runs on the dedicated 2-thread translation
+        // executor, never the main/render thread) BEFORE kicking off the actual
+        // HTTP call, and release it in whenComplete regardless of outcome. This is
+        // what actually bounds concurrent HTTP requests - see class Javadoc.
+        CompletableFuture.runAsync(() -> {
+            try {
+                inFlightHttpRequests.acquireUninterruptibly();
+            } catch (RuntimeException e) {
+                // Should not happen (acquireUninterruptibly doesn't throw checked
+                // exceptions), but never let permit bookkeeping crash a translation.
+            }
+        }, asyncExecutor)
                 .thenCompose(v -> provider.translate(request, candidate, rawKey))
                 .whenComplete((result, error) -> {
+                    inFlightHttpRequests.release();
                     if (tookReservation && state != null) {
                         state.releaseProbe();
                     }
@@ -142,6 +197,15 @@ public final class TranslationService {
                         AllTranslator.LOGGER.warn("Translation via " + candidate.displayName()
                                 + " failed (" + failureType + ")", cause);
                         apiManager.recordFailure(candidate.id(), failureType);
+
+                        BiConsumer<String, String> listener = failureListener;
+                        if (listener != null) {
+                            try {
+                                listener.accept(candidate.displayName(), failureType.toString());
+                            } catch (RuntimeException e) {
+                                AllTranslator.LOGGER.warn("Translation failure listener threw", e);
+                            }
+                        }
 
                         if (cause instanceof TranslationException) {
                             long retryAfter = ((TranslationException) cause).retryAfterSeconds();

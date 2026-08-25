@@ -20,22 +20,59 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Works with any OpenAI-compatible chat-completions endpoint.
- * extraParams: "model" (default "gpt-4o-mini"), "systemPrompt" (optional override).
+ * extraParams: "model" (default "gpt-4o-mini"), "systemPrompt" (optional override),
+ * "timeoutSeconds" (optional override, see Phase 13 note below).
+ *
+ * Phase 13 fix: the HTTP request timeout was hardcoded to 20 seconds. This is fine
+ * for hosted cloud APIs but far too short for local LLM servers (e.g. LM Studio)
+ * running a 7B+ model with partial GPU offload, where even a short translation can
+ * take well over 20s on first generation. Found via real-world testing (LM Studio
+ * on a 6GB-VRAM GPU, 26/29 layers offloaded, request timed out at the old 20s
+ * limit). Now configurable per-API via extraParams["timeoutSeconds"]; falls back to
+ * DEFAULT_TIMEOUT_SECONDS (30) if unset or unparsable, which keeps prior behavior
+ * for already-working cloud-API configs roughly the same order of magnitude while
+ * giving local-LLM users a documented way to raise it (e.g. 120) without a code
+ * change. Not yet exposed in ApiEditScreen's UI (extraParams in general has no
+ * generic editor there) - README documents the manual config.json edit for now.
+ *
+ * Phase 13 (2nd change): now backs BOTH ProviderType.OPENAI_COMPATIBLE (cloud,
+ * e.g. official OpenAI - API key required) and ProviderType.OPENAI_COMPATIBLE_LOCAL
+ * (local servers like LM Studio, or reportedly llama.cpp's llama-server which is
+ * documented upstream as speaking the same protocol but was NOT independently
+ * verified here - see ProviderType's Javadoc). Both share the exact same wire
+ * protocol (OpenAI chat-completions JSON shape), so a single implementation class
+ * is instantiated twice by ProviderFactory - once per ProviderType, each with its
+ * own `type` and `requireApiKey` flag - rather than duplicating this class. Most
+ * local servers accept requests with no Authorization header at all (or ignore an
+ * arbitrary placeholder key), so requireApiKey=false simply skips the "no key"
+ * failure and omits the Authorization header when no key is configured, instead of
+ * hard-requiring one like the cloud path.
  */
 public final class OpenAiCompatibleProvider implements TranslationProvider {
 
+    private static final int DEFAULT_TIMEOUT_SECONDS = 30;
+
     private final HttpClient httpClient;
+    private final ProviderType type;
+    private final boolean requireApiKey;
 
     public OpenAiCompatibleProvider(HttpClient httpClient) {
+        this(httpClient, ProviderType.OPENAI_COMPATIBLE, true);
+    }
+
+    public OpenAiCompatibleProvider(HttpClient httpClient, ProviderType type, boolean requireApiKey) {
         this.httpClient = httpClient;
+        this.type = type;
+        this.requireApiKey = requireApiKey;
     }
 
     @Override
-    public ProviderType type() { return ProviderType.OPENAI_COMPATIBLE; }
+    public ProviderType type() { return type; }
 
     @Override
     public CompletableFuture<TranslationResult> translate(TranslationRequest request, TranslationApiConfig config, String rawApiKey) {
-        if (rawApiKey == null || rawApiKey.isBlank()) {
+        boolean hasKey = rawApiKey != null && !rawApiKey.isBlank();
+        if (requireApiKey && !hasKey) {
             CompletableFuture<TranslationResult> failed = new CompletableFuture<>();
             failed.completeExceptionally(new TranslationException(ApiFailureType.CONFIG_ERROR, -1,
                     "No API key configured for " + config.displayName()));
@@ -47,6 +84,7 @@ public final class OpenAiCompatibleProvider implements TranslationProvider {
                 "You are a translation engine. Translate the user's message into the language with code '"
                         + request.targetLang() + "'. Reply with ONLY the translated text, no quotes, no explanation, "
                         + "and preserve any placeholder tokens exactly as-is.");
+        int timeoutSeconds = readTimeoutSeconds(config);
 
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
@@ -56,11 +94,17 @@ public final class OpenAiCompatibleProvider implements TranslationProvider {
         messages.add(message("user", request.sourceText()));
         body.add("messages", messages);
 
-        HttpRequest httpRequest = HttpRequest.newBuilder()
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(config.endpoint()))
-                .timeout(Duration.ofSeconds(20))
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + rawApiKey)
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .header("Content-Type", "application/json");
+        // Phase 13: only send Authorization when a key is actually configured - many
+        // local servers (e.g. LM Studio) neither require nor expect this header, and
+        // sending "Bearer null"/"Bearer " would be actively wrong, not just harmless.
+        if (hasKey) {
+            builder.header("Authorization", "Bearer " + rawApiKey);
+        }
+        HttpRequest httpRequest = builder
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
 
@@ -76,6 +120,24 @@ public final class OpenAiCompatibleProvider implements TranslationProvider {
                     return new TranslationResult(translated, request.sourceText(), request.targetLang(),
                             config.id(), false, translated.equals(request.sourceText()));
                 });
+    }
+
+    /**
+     * Reads extraParams["timeoutSeconds"] if present and a valid positive integer;
+     * otherwise returns DEFAULT_TIMEOUT_SECONDS. Never throws on malformed input -
+     * a typo'd config value should fall back safely rather than crash translation.
+     */
+    private static int readTimeoutSeconds(TranslationApiConfig config) {
+        String raw = config.extraParams().get("timeoutSeconds");
+        if (raw == null || raw.isBlank()) {
+            return DEFAULT_TIMEOUT_SECONDS;
+        }
+        try {
+            int parsed = Integer.parseInt(raw.trim());
+            return parsed > 0 ? parsed : DEFAULT_TIMEOUT_SECONDS;
+        } catch (NumberFormatException e) {
+            return DEFAULT_TIMEOUT_SECONDS;
+        }
     }
 
     private static JsonObject message(String role, String content) {

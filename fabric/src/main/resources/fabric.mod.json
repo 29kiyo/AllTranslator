@@ -12,6 +12,7 @@
     "sources": "https://github.com/29kiyo/alltranslator"
   },
   "license": "TBD",
+  "icon": "assets/alltranslator/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [

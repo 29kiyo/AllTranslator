@@ -33,4 +33,26 @@ public final class ConfigModel {
      * PlayerTranslationSettingsManager.
      */
     public boolean serverSideChatTranslationEnabled = false;
+
+    /** Phase 13: append " (original text)" after translated chat lines. Off by default. */
+    public boolean showOriginalTextInChat = false;
+
+    /** Phase 13: recipe-unlocked-style toast (top-right) on translation API failure. On by default. */
+    public boolean apiErrorToastEnabled = true;
+    /** Phase 13: sound for the above toast. Off by default (visual-only unless explicitly enabled). */
+    public boolean apiErrorToastSoundEnabled = false;
+
+    /**
+     * Phase 13: translate other mods' Screen widgets (buttons, toggles, labels),
+     * not just items/tooltips/entities/chat. Off by default after real-world
+     * testing found it breaking the vanilla world-creation screen (dynamic-state
+     * buttons like the gamemode cycle button being corrupted by an unconditional
+     * setMessage() every tick) - see DEVELOPMENT_STATUS.md Phase 13 for the
+     * investigation. Left in the config as an opt-in toggle rather than removed
+     * outright while the root cause is narrowed down.
+     */
+    public boolean translateOtherModScreens = false;
+
+    /** Phase 13: append " (original name)" after translated item names/tooltip first lines. Off by default. */
+    public boolean showOriginalNameOnItems = false;
 }

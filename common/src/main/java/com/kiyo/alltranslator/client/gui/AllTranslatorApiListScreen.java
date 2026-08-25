@@ -42,7 +42,7 @@ public final class AllTranslatorApiListScreen extends Screen {
     private List<TranslationApiConfig> sorted;
 
     public AllTranslatorApiListScreen(Screen parent) {
-        super(Component.literal("All Translator - APIs"));
+        super(Component.translatable("gui.alltranslator.apilist.title"));
         this.parent = parent;
         this.configManager = AllTranslatorCore.configManager();
         this.apiManager = AllTranslatorCore.apiManager();
@@ -108,7 +108,7 @@ public final class AllTranslatorApiListScreen extends Screen {
                     .active = canMoveDown;
 
             this.addRenderableWidget(
-                    Button.builder(Component.literal(cfg.enabled() ? "Disable" : "Enable"), button -> {
+                    Button.builder(Component.translatable(cfg.enabled() ? "gui.alltranslator.apilist.disable" : "gui.alltranslator.apilist.enable"), button -> {
                                 cfg.setEnabled(!cfg.enabled());
                                 persistAndReload();
                                 this.rebuildWidgets();
@@ -118,7 +118,7 @@ public final class AllTranslatorApiListScreen extends Screen {
                             .build());
 
             this.addRenderableWidget(
-                    Button.builder(Component.literal("Remove"), button -> {
+                    Button.builder(Component.translatable("gui.alltranslator.apilist.remove"), button -> {
                                 configManager.model().apis.remove(cfg);
                                 if (cfg.credentialId() != null) {
                                     credentialStore.removeKey(cfg.credentialId());
@@ -135,7 +135,7 @@ public final class AllTranslatorApiListScreen extends Screen {
 
         int bottomY = this.height - 54;
         Button prevButton = this.addRenderableWidget(
-                Button.builder(Component.literal("< Prev"), button -> {
+                Button.builder(Component.translatable("gui.alltranslator.apilist.prev"), button -> {
                             page--;
                             this.rebuildWidgets();
                         })
@@ -145,7 +145,7 @@ public final class AllTranslatorApiListScreen extends Screen {
         prevButton.active = page > 0;
 
         Button nextButton = this.addRenderableWidget(
-                Button.builder(Component.literal("Next >"), button -> {
+                Button.builder(Component.translatable("gui.alltranslator.apilist.next"), button -> {
                             page++;
                             this.rebuildWidgets();
                         })
@@ -155,7 +155,7 @@ public final class AllTranslatorApiListScreen extends Screen {
         nextButton.active = page < maxPage;
 
         this.addRenderableWidget(
-                Button.builder(Component.literal("Add API"), button ->
+                Button.builder(Component.translatable("gui.alltranslator.apilist.add_api"), button ->
                                 this.minecraft.gui.setScreen(new ApiEditScreen(this, null)))
                         .pos(this.width / 2 - 205, bottomY)
                         .size(90, 20)
@@ -208,8 +208,8 @@ public final class AllTranslatorApiListScreen extends Screen {
         super.extractRenderState(drawContext, mouseX, mouseY, delta);
         drawContext.centeredText(this.font, this.title, this.width / 2, 12, 0xFFFFFFFF);
         if (sorted.isEmpty()) {
-            drawContext.centeredText(this.font, "No APIs configured yet - use Add API below.",
-                    this.width / 2, this.height / 2 - 30, 0xFFAAAAAA);
+            drawContext.centeredText(this.font, Component.translatable("gui.alltranslator.apilist.no_apis"),
+                    this.width / 2, this.height / 2 - 30, 0xFFFFFFFF);
         }
     }
 }

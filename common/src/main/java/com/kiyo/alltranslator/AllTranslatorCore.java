@@ -103,8 +103,17 @@ public final class AllTranslatorCore {
             return t;
         });
 
+        // Phase 13 fix: force HTTP/1.1. HttpClient defaults to attempting HTTP/2
+        // upgrade negotiation, which real-world testing showed hangs (times out)
+        // against local LLM servers such as LM Studio's built-in llama.cpp HTTP
+        // server, which only speaks HTTP/1.1 - the mod-side request never even
+        // reached LM Studio's own request log, while a plain curl (also HTTP/1.1
+        // by default) succeeded in ~4.6s against the same endpoint. Cloud API
+        // providers (OpenAI, DeepL, Google) all support HTTP/1.1 as well, so this
+        // is not expected to regress the already-working cloud-provider path.
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
+                .version(HttpClient.Version.HTTP_1_1)
                 .build();
 
         translationService = new TranslationService(

@@ -1,10 +1,14 @@
 package com.kiyo.alltranslator.text;
 
+import com.kiyo.alltranslator.AllTranslatorCore;
 import com.kiyo.alltranslator.lang.LanguageResolver;
 import com.kiyo.alltranslator.lang.LocalizedTextResolver;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.contents.TranslatableContents;
 
+import java.util.IllegalFormatException;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,16 +27,41 @@ import java.util.concurrent.ConcurrentHashMap;
  * is ever fed back in as a "source" (e.g. a mod re-reading the already-translated
  * component), it is passed through unchanged instead of being translated again.
  *
- * One instance per content category (item name / tooltip / entity name) is created
- * in AllTranslatorClientCore, client-side only - see that class for why these must
- * never be constructed from common's AllTranslatorCore.init().
+ * Phase 13 CRITICAL FIX (real-world testing): knownOutputs/byCacheKey used to be
+ * per-instance, and AllTranslatorClientCore creates one instance PER content
+ * category (item name / tooltip / entity name / screen widget). This caused actual
+ * translation corruption in practice: ItemStackMixin's getHoverName() hook runs
+ * FIRST and returns an already-translated, now-KEYLESS Component (e.g. the
+ * already-correct Japanese "作業台", via the existing-translation path, §3). MC
+ * itself then reuses getHoverName()'s result as the tooltip's first line. Because
+ * ItemTooltipTranslationHook uses a SEPARATE TranslatableTextInterceptor instance
+ * with its own empty knownOutputs, it had no way to know "作業台" was already a
+ * final translated string - the Component now had no key (getContents() is no
+ * longer TranslatableContents), so the existing-translation lookup (§3) was
+ * skipped entirely, and the ALREADY-JAPANESE text was sent to the translation API
+ * as if it were untranslated source text - observed corrupting entries like
+ * "オークの木" into "オーキの木" via an LLM backend "translating" already-correct
+ * Japanese into slightly different Japanese. Fixed by making knownOutputs (and,
+ * for the same reason, byCacheKey) STATIC / shared across every
+ * TranslatableTextInterceptor instance in the JVM, so a string translated via any
+ * one instance (item name, tooltip, entity name, or screen widget) is immediately
+ * recognized as "already final" by every other instance too - closing this gap
+ * structurally rather than only for the specific item-name/tooltip pairing found
+ * during testing.
+ *
+ * One instance per content category (item name / tooltip / entity name / screen
+ * widget) is still created in AllTranslatorClientCore, client-side only - see that
+ * class for why these must never be constructed from common's AllTranslatorCore.init() -
+ * but they now cooperate via shared static state rather than being fully isolated.
  */
 public final class TranslatableTextInterceptor {
-
     private final LocalizedTextResolver resolver;
     private final LanguageResolver languageResolver;
-    private final ConcurrentHashMap<String, CompletableFuture<String>> byCacheKey = new ConcurrentHashMap<>();
-    private final Set<String> knownOutputs = ConcurrentHashMap.newKeySet();
+
+    /** Phase 13 fix: shared across ALL instances (see class Javadoc). */
+    private static final ConcurrentHashMap<String, CompletableFuture<String>> byCacheKey = new ConcurrentHashMap<>();
+    /** Phase 13 fix: shared across ALL instances (see class Javadoc). */
+    private static final Set<String> knownOutputs = ConcurrentHashMap.newKeySet();
 
     public TranslatableTextInterceptor(LocalizedTextResolver resolver, LanguageResolver languageResolver) {
         this.resolver = resolver;
@@ -50,30 +79,83 @@ public final class TranslatableTextInterceptor {
         if (original == null) {
             return null;
         }
+        if (!AllTranslatorCore.configManager().model().translationEnabled) {
+            return original;
+        }
         String plain = original.getString();
         if (plain.isBlank() || knownOutputs.contains(plain)) {
             return original;
         }
-
         String targetLang = languageResolver.resolveTargetLanguage();
         String cacheKey = targetLang + '\u0000' + plain;
-
         CompletableFuture<String> future = byCacheKey.computeIfAbsent(cacheKey,
                 k -> resolver.resolve(key, plain));
-
         if (!future.isDone()) {
             return original;
         }
-
         String translated = future.getNow(plain);
         if (translated == null || translated.equals(plain)) {
+            // Phase 13 fix (real-world bug, e.g. Traveler's Backpack "Lantern Upgrade"
+            // and several sibling upgrades never translating): this branch is hit both
+            // by legitimately-untranslated text (source == target language, already
+            // cached by TranslationService as noTranslationNeeded) AND by the "all API
+            // candidates exhausted" fallback (TranslationService.attemptNext(), which
+            // deliberately does NOT cache that outcome so a later request can retry -
+            // see its own comment). Leaving the completed future sitting in this static
+            // byCacheKey map forever silently converted the second case into a
+            // permanent failure: any request that lost the single-flight probe race
+            // (ApiState#tryReserveProbe, Phase 11) against another concurrent request
+            // for the one-and-only configured API never got a second chance, because
+            // intercept() short-circuits on future.isDone() before resolver.resolve()
+            // is ever called again. Removing the entry here lets the next call replay
+            // resolve() -> TranslationService.translate(): the legitimately-untranslated
+            // case will simply hit TranslationService's own (source-language) cache
+            // again immediately (no extra API calls), while the exhausted-fallback case
+            // gets a genuine new attempt through attemptNext(), matching the documented
+            // "no future request permanently blocked" intent of ARCHITECTURE.md §7/§23.1.
+            byCacheKey.remove(cacheKey, future);
             return original;
         }
-
+        translated = reapplyArgsIfNeeded(original, translated);
         knownOutputs.add(translated);
         MutableComponent result = Component.literal(translated);
         result.setStyle(original.getStyle());
         return result;
+    }
+
+    private static String reapplyArgsIfNeeded(Component original, String translated) {
+        if (translated.indexOf('%') < 0) {
+            return translated;
+        }
+        if (!(original.getContents() instanceof TranslatableContents tc)) {
+            return translated;
+        }
+        Object[] args = tc.getArgs();
+        if (args == null || args.length == 0) {
+            return translated;
+        }
+        try {
+            return String.format(Locale.ROOT, translated, args);
+        } catch (IllegalFormatException e) {
+            return translated;
+        }
+    }
+
+    /**
+     * Phase 13 fix: registers an externally-composed final display string (e.g.
+     * "translated (original)" from the showOriginalNameOnItems suffix feature) as
+     * already-final, so it is never re-fed into the translation pipeline as if it
+     * were untranslated source text. Callers that build a Component OUTSIDE of
+     * intercept() itself (i.e. anything appending a suffix to intercept()'s result)
+     * MUST call this with the exact final getString() value, or that composed
+     * string can be re-sent to the translation API on a later call - this is
+     * exactly the bug found in real-world testing when the (original name) suffix
+     * was added without this registration.
+     */
+    public static void registerKnownOutput(String finalDisplayText) {
+        if (finalDisplayText != null && !finalDisplayText.isBlank()) {
+            knownOutputs.add(finalDisplayText);
+        }
     }
 
     /** Call when the client's target language changes so stale results aren't reused. */

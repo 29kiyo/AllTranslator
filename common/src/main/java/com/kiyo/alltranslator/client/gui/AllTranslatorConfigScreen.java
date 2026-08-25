@@ -19,32 +19,42 @@ import java.util.UUID;
 /**
  * Phase 8: the single shared configuration screen ARCHITECTURE.md §11/§15 call for.
  *
- * Phase 11: reverted the short-lived "No-Key Providers" sub-screen (which supported
- * both Google Translate Free and LibreTranslate side by side) back to a single
- * on/off toggle here, after LibreTranslate's public instance turned out to require
- * a paid API key (confirmed by hand - HTTP 400 "Visit https://portal.libretranslate.com
- * to get an API key" from the actual endpoint) and was dropped. Google Translate
- * (Free) is still an ordinary TranslationApiConfig entry in ConfigModel#apis -
- * editable/reorderable in "Manage Translation APIs" like any other API - this toggle
- * is just a convenience that creates-or-flips-enabled on that one entry rather than
- * making the user go find it in the API list.
+ * Phase 13 layout rewrite: moved from a single centered column to a two-column
+ * layout (left/right, each its own X origin and independent Y cursor) since the
+ * growing number of Phase 11-13 settings made the single-column version too tall
+ * on smaller GUI-scale windows. Label color changed from 0xFFAAAAAA (grey, hard to
+ * read per user feedback) to 0xFFFFFFFF (white, matching the title). Vertical
+ * spacing between rows increased (24 -> 34) so label text and the widget below it
+ * no longer visually crowd each other.
  */
 public final class AllTranslatorConfigScreen extends Screen {
 
     private static final String GOOGLE_FREE_ENDPOINT = "https://translate.googleapis.com/translate_a/single";
+    private static final int LABEL_COLOR = 0xFFFFFFFF;
+    private static final int ROW_HEIGHT = 40;
+    private static final int COLUMN_WIDTH = 150;
+    private static final int COLUMN_GAP = 20;
 
     private final Screen parent;
     private final ConfigManager configManager;
     private final ConfigModel model;
 
-    private int fieldX;
-    private int fieldWidth;
+    private int leftX;
+    private int rightX;
+
     private int labelTranslationY;
     private int labelLanguageY;
     private int labelServerChatY;
     private int labelMemCacheY;
     private int labelTtlY;
+    private int labelShowOriginalNameY;
+
     private int labelGoogleFreeY;
+    private int labelShowOriginalY;
+    private int labelToastY;
+    private int labelToastSoundY;
+    private int labelOtherScreensY;
+
     private int apiCountLabelY;
     private int apiButtonY;
 
@@ -53,10 +63,16 @@ public final class AllTranslatorConfigScreen extends Screen {
     private CycleButton<Boolean> serverChatButton;
     private EditBox memoryCacheBox;
     private EditBox ttlBox;
+    private CycleButton<Boolean> showOriginalNameButton;
+
     private CycleButton<Boolean> googleFreeButton;
+    private CycleButton<Boolean> showOriginalTextButton;
+    private CycleButton<Boolean> toastEnabledButton;
+    private CycleButton<Boolean> toastSoundButton;
+    private CycleButton<Boolean> otherScreensButton;
 
     public AllTranslatorConfigScreen(Screen parent) {
-        super(Component.literal("All Translator"));
+        super(Component.translatable("gui.alltranslator.config.title"));
         this.parent = parent;
         this.configManager = AllTranslatorCore.configManager();
         this.model = configManager.model();
@@ -68,56 +84,99 @@ public final class AllTranslatorConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        fieldX = this.width / 2 - 100;
-        fieldWidth = 200;
-        int y = 22;
-        int blockHeight = 30;
+        int totalWidth = COLUMN_WIDTH * 2 + COLUMN_GAP;
+        leftX = this.width / 2 - totalWidth / 2;
+        rightX = leftX + COLUMN_WIDTH + COLUMN_GAP;
+
+        int topY = 26;
+
+        // ----- left column -----
+        int y = topY;
 
         labelTranslationY = y;
         translationEnabledButton = CycleButton.onOffBuilder(model.translationEnabled)
-                .create(fieldX, y + 10, fieldWidth, 20, Component.literal("Translation"));
+                .create(leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.translation"));
         this.addRenderableWidget(translationEnabledButton);
-        y += blockHeight;
+        y += ROW_HEIGHT;
 
         labelLanguageY = y;
-        targetLanguageBox = new EditBox(this.font, fieldX, y + 10, fieldWidth, 20, Component.literal("Target Language"));
+        targetLanguageBox = new EditBox(this.font, leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.target_language"));
         targetLanguageBox.setMaxLength(16);
         targetLanguageBox.setHint(Component.literal("auto"));
         targetLanguageBox.setValue(model.forcedTargetLanguage == null ? "" : model.forcedTargetLanguage);
         this.addRenderableWidget(targetLanguageBox);
-        y += blockHeight;
+        y += ROW_HEIGHT;
 
         labelServerChatY = y;
         serverChatButton = CycleButton.onOffBuilder(model.serverSideChatTranslationEnabled)
-                .create(fieldX, y + 10, fieldWidth, 20, Component.literal("Server Chat"));
+                .create(leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.server_chat"));
         this.addRenderableWidget(serverChatButton);
-        y += blockHeight;
+        y += ROW_HEIGHT;
 
         labelMemCacheY = y;
-        memoryCacheBox = new EditBox(this.font, fieldX, y + 10, fieldWidth, 20, Component.literal("Memory Cache Capacity"));
+        memoryCacheBox = new EditBox(this.font, leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.memory_cache_capacity"));
         memoryCacheBox.setMaxLength(6);
         memoryCacheBox.setValue(String.valueOf(model.memoryCacheCapacity));
         this.addRenderableWidget(memoryCacheBox);
-        y += blockHeight;
+        y += ROW_HEIGHT;
 
         labelTtlY = y;
-        ttlBox = new EditBox(this.font, fieldX, y + 10, fieldWidth, 20, Component.literal("Dynamic Text Cache TTL (days)"));
+        ttlBox = new EditBox(this.font, leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.dynamic_text_ttl"));
         ttlBox.setMaxLength(4);
         ttlBox.setValue(String.valueOf(model.dynamicTextCacheTtlDays));
         this.addRenderableWidget(ttlBox);
-        y += blockHeight;
+        y += ROW_HEIGHT;
+
+        labelShowOriginalNameY = y;
+        showOriginalNameButton = CycleButton.onOffBuilder(model.showOriginalNameOnItems)
+                .create(leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.show_original_on_items"));
+        this.addRenderableWidget(showOriginalNameButton);
+        y += ROW_HEIGHT;
+
+        int leftColumnBottom = y;
+
+        // ----- right column -----
+        y = topY;
 
         labelGoogleFreeY = y;
         boolean googleCurrentlyOn = findGoogleFree().map(TranslationApiConfig::enabled).orElse(false);
         googleFreeButton = CycleButton.onOffBuilder(googleCurrentlyOn)
-                .create(fieldX, y + 10, fieldWidth, 20, Component.literal("Google Translate (Free)"));
+                .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.google_free"));
         this.addRenderableWidget(googleFreeButton);
-        y += blockHeight;
+        y += ROW_HEIGHT;
 
-        apiCountLabelY = y;
-        apiButtonY = y + 10;
+        labelShowOriginalY = y;
+        showOriginalTextButton = CycleButton.onOffBuilder(model.showOriginalTextInChat)
+                .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.show_original_in_chat"));
+        this.addRenderableWidget(showOriginalTextButton);
+        y += ROW_HEIGHT;
+
+        labelToastY = y;
+        toastEnabledButton = CycleButton.onOffBuilder(model.apiErrorToastEnabled)
+                .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.api_error_toast"));
+        this.addRenderableWidget(toastEnabledButton);
+        y += ROW_HEIGHT;
+
+        labelToastSoundY = y;
+        toastSoundButton = CycleButton.onOffBuilder(model.apiErrorToastSoundEnabled)
+                .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.api_error_toast_sound"));
+        this.addRenderableWidget(toastSoundButton);
+        y += ROW_HEIGHT;
+
+        labelOtherScreensY = y;
+        otherScreensButton = CycleButton.onOffBuilder(model.translateOtherModScreens)
+                .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.translate_other_screens"));
+        this.addRenderableWidget(otherScreensButton);
+        y += ROW_HEIGHT;
+
+        int rightColumnBottom = y;
+
+        int bottomOfColumns = Math.max(leftColumnBottom, rightColumnBottom);
+
+        apiCountLabelY = bottomOfColumns;
+        apiButtonY = bottomOfColumns + 12;
         this.addRenderableWidget(
-                Button.builder(Component.literal("Manage Translation APIs"), button ->
+                Button.builder(Component.translatable("gui.alltranslator.config.manage_apis"), button ->
                                 this.minecraft.gui.setScreen(new AllTranslatorApiListScreen(this)))
                         .pos(this.width / 2 - 100, apiButtonY)
                         .size(200, 20)
@@ -138,6 +197,11 @@ public final class AllTranslatorConfigScreen extends Screen {
     private void applyToModel() {
         model.translationEnabled = translationEnabledButton.getValue();
         model.serverSideChatTranslationEnabled = serverChatButton.getValue();
+        model.showOriginalTextInChat = showOriginalTextButton.getValue();
+        model.apiErrorToastEnabled = toastEnabledButton.getValue();
+        model.apiErrorToastSoundEnabled = toastSoundButton.getValue();
+        model.translateOtherModScreens = otherScreensButton.getValue();
+        model.showOriginalNameOnItems = showOriginalNameButton.getValue();
 
         String targetLanguage = targetLanguageBox.getValue().trim();
         model.forcedTargetLanguage = targetLanguage.isEmpty() ? null : targetLanguage;
@@ -182,16 +246,22 @@ public final class AllTranslatorConfigScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor drawContext, int mouseX, int mouseY, float delta) {
         super.extractRenderState(drawContext, mouseX, mouseY, delta);
-        drawContext.centeredText(this.font, this.title, this.width / 2, 8, 0xFFFFFFFF);
+        drawContext.centeredText(this.font, this.title, this.width / 2, 8, LABEL_COLOR);
 
-        drawContext.text(this.font, "Translation Enabled", fieldX, labelTranslationY, 0xFFAAAAAA);
-        drawContext.text(this.font, "Target Language (blank = auto)", fieldX, labelLanguageY, 0xFFAAAAAA);
-        drawContext.text(this.font, "Server-Side Chat Translation", fieldX, labelServerChatY, 0xFFAAAAAA);
-        drawContext.text(this.font, "Memory Cache Capacity", fieldX, labelMemCacheY, 0xFFAAAAAA);
-        drawContext.text(this.font, "Dynamic Text Cache TTL (days)", fieldX, labelTtlY, 0xFFAAAAAA);
-        drawContext.text(this.font, "Google Translate (Free)", fieldX, labelGoogleFreeY, 0xFFAAAAAA);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.translation_enabled"), leftX, labelTranslationY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.target_language_hint"), leftX, labelLanguageY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.server_chat_label"), leftX, labelServerChatY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.memory_cache_capacity"), leftX, labelMemCacheY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.dynamic_text_ttl"), leftX, labelTtlY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.show_original_on_items"), leftX, labelShowOriginalNameY, LABEL_COLOR);
+
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.google_free"), rightX, labelGoogleFreeY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.show_original_in_chat_label"), rightX, labelShowOriginalY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.api_error_toast"), rightX, labelToastY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.api_error_toast_sound"), rightX, labelToastSoundY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.translate_other_screens"), rightX, labelOtherScreensY, LABEL_COLOR);
 
         int apiCount = model.apis.size();
-        drawContext.text(this.font, apiCount + " API configuration(s)", fieldX, apiCountLabelY, 0xFFAAAAAA);
+        drawContext.centeredText(this.font, Component.translatable("gui.alltranslator.config.api_count", apiCount), this.width / 2, apiCountLabelY, LABEL_COLOR);
     }
 }

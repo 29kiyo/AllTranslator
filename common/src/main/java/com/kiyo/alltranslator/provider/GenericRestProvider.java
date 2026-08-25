@@ -30,7 +30,10 @@ import java.util.concurrent.CompletableFuture;
  *                      (default "translatedText")
  *
  * Nested/array response shapes need confirmation against a real target API before
- * relying on them (CLAUDE.md: never invent APIs) - use CUSTOM for those, in a later phase.
+ * relying on them (CLAUDE.md: never invent APIs). The Phase 0-era CUSTOM provider slot
+ * for those was removed in Phase 13 (unused, never registered in ProviderFactory) -
+ * a future provider for such a shape should be added as its own named ProviderType
+ * once a real target API is confirmed, rather than reintroducing a generic "custom" slot.
  */
 public final class GenericRestProvider implements TranslationProvider {
 

@@ -153,12 +153,13 @@ public final class ChatTranslationCoordinator {
 
             Style bodyStyle = originalBody.getStyle();
             mc.execute(() -> patchDisplayedLine(
-                    mc, signature, expectedOriginalLine, tickAtReceipt, boundChatType, restored, bodyStyle));
+                    mc, signature, expectedOriginalLine, tickAtReceipt, boundChatType, restored, bodyStyle, plain));
         });
     }
 
     private void patchDisplayedLine(Minecraft mc, @Nullable MessageSignature signature, String expectedOriginalLine,
-                                     int tickAtReceipt, ChatType.Bound boundChatType, String translatedBody, Style bodyStyle) {
+                                     int tickAtReceipt, ChatType.Bound boundChatType, String translatedBody, Style bodyStyle,
+                                     String originalPlainForSuffix) {
         if (mc.player == null) return; // disconnected before translation finished
 
         ChatComponent chat = mc.gui.hud.getChat();
@@ -192,6 +193,15 @@ public final class ChatTranslationCoordinator {
         }
 
         MutableComponent translatedComponent = Component.literal(translatedBody).setStyle(bodyStyle);
+        // Phase 13: optional "(original text)" suffix, OFF by default (ConfigModel
+        // #showOriginalTextInChat). originalPlainForSuffix is the pre-translation
+        // plain body (no username/formatting), matching what was actually sent to
+        // the translation API - not expectedOriginalLine, which includes the
+        // decorated username and would look wrong repeated inline.
+        if (configManager.model().showOriginalTextInChat) {
+            translatedComponent = translatedComponent.copy()
+                    .append(Component.literal(" (" + originalPlainForSuffix + ")").setStyle(bodyStyle));
+        }
         Component redecorated = boundChatType.decorate(translatedComponent);
         messages.set(targetIndex, new GuiMessage(existing.addedTime(), redecorated, existing.signature(), existing.source(), existing.tag()));
         accessor.alltranslator$refreshTrimmedMessages();
