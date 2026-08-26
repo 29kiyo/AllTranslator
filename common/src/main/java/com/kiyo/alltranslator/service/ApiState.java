@@ -10,6 +10,19 @@ public final class ApiState {
     private static final long BASE_COOLDOWN_SECONDS = 30L;
     private static final long MAX_SHORT_COOLDOWN_SECONDS = 5 * 60L;
     private static final long QUOTA_COOLDOWN_SECONDS = 60 * 60L;
+    /**
+     * Phase 13 fix (real-world bug): a single HTTP 400/404 is ambiguous - it can mean
+     * genuinely broken configuration (wrong endpoint/model name), but real-world
+     * testing showed a local LLM server (LM Studio) under heavy concurrent request
+     * load can also return a malformed/rejected 400 for an otherwise-valid request
+     * during a burst (observed exactly during a Traveler's Backpack inventory-open
+     * translation storm - see DEVELOPMENT_STATUS.md). Give CONFIG_ERROR this many
+     * consecutive chances (with a short backoff in between, like TEMP_UNAVAILABLE)
+     * before concluding the configuration itself is actually broken and permanently
+     * disabling it. Does NOT apply to AUTH_FAILED, which stays immediate - an
+     * invalid/rejected API key is unambiguous.
+     */
+    private static final int CONFIG_ERROR_DISABLE_THRESHOLD = 3;
 
     private final UUID configId;
     private ApiStatus status = ApiStatus.AVAILABLE;
@@ -89,9 +102,18 @@ public final class ApiState {
 
         switch (failureType) {
             case AUTH_FAILED:
-            case CONFIG_ERROR:
                 status = ApiStatus.DISABLED_PERMANENT;
                 cooldownUntil = null;
+                return;
+            case CONFIG_ERROR:
+                // Phase 13 fix: see CONFIG_ERROR_DISABLE_THRESHOLD's Javadoc above.
+                if (consecutiveFailures >= CONFIG_ERROR_DISABLE_THRESHOLD) {
+                    status = ApiStatus.DISABLED_PERMANENT;
+                    cooldownUntil = null;
+                } else {
+                    status = ApiStatus.TEMP_UNAVAILABLE;
+                    cooldownUntil = Instant.now().plusSeconds(backoffSeconds());
+                }
                 return;
             case QUOTA_EXCEEDED:
                 status = ApiStatus.QUOTA_EXCEEDED;

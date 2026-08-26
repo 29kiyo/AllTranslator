@@ -113,8 +113,15 @@ public final class OpenAiCompatibleProvider implements TranslationProvider {
                     int status = response.statusCode();
                     if (status != 200) {
                         long retryAfter = readRetryAfter(response);
+                        // Phase 13 fix: include a truncated response body snippet in the
+                        // exception message so a future CONFIG_ERROR/TEMP_UNAVAILABLE burst
+                        // can be diagnosed from the game log alone, without needing to
+                        // separately correlate timestamps against the LLM server's own log
+                        // (see DEVELOPMENT_STATUS.md for the investigation this fixes).
                         throw new TranslationException(classify(status, response.body()), status,
-                                "HTTP " + status + " from " + config.displayName(), null, retryAfter);
+                                "HTTP " + status + " from " + config.displayName()
+                                        + " - body: " + truncate(response.body(), 200),
+                                null, retryAfter);
                     }
                     String translated = extractContent(response.body());
                     return new TranslationResult(translated, request.sourceText(), request.targetLang(),
@@ -154,6 +161,12 @@ public final class OpenAiCompatibleProvider implements TranslationProvider {
                 .getAsJsonObject("message")
                 .get("content").getAsString()
                 .trim();
+    }
+
+    private static String truncate(String s, int maxLen) {
+        if (s == null) return "(no body)";
+        String oneLine = s.replace('\n', ' ').replace('\r', ' ').trim();
+        return oneLine.length() <= maxLen ? oneLine : oneLine.substring(0, maxLen) + "...";
     }
 
     private static long readRetryAfter(HttpResponse<String> response) {

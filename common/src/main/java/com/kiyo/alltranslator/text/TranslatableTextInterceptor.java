@@ -87,6 +87,20 @@ public final class TranslatableTextInterceptor {
             return original;
         }
         String targetLang = languageResolver.resolveTargetLanguage();
+        // Phase 13 bugfix: keyless text (key == null) captured from a mod's own
+        // already-rendered UI (ScreenWidgetTranslationHook / LibIpnCompat /
+        // UiLibCompat) is rendered in Minecraft's LIVE display language, not
+        // necessarily untranslated en_us source text. If that live language
+        // already equals the resolved target language, treat it as already-final
+        // rather than sending it to the translation API - see
+        // LanguageResolver#resolveLiveClientLanguage's Javadoc for the real-world
+        // corruption bug this prevents. Key-based lookups are unaffected: they
+        // already go through ExistingTranslationChecker's own "target IS source"
+        // branch (ARCHITECTURE.md §3).
+        if (key == null && languageResolver.resolveLiveClientLanguage().equals(targetLang)) {
+            knownOutputs.add(plain);
+            return original;
+        }
         String cacheKey = targetLang + '\u0000' + plain;
         CompletableFuture<String> future = byCacheKey.computeIfAbsent(cacheKey,
                 k -> resolver.resolve(key, plain));

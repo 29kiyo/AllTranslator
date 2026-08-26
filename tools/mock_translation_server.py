@@ -65,6 +65,19 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_success(shape, body)
             return
 
+        # Phase 13 addition: verifies ApiState.CONFIG_ERROR_DISABLE_THRESHOLD (a
+        # burst of HTTP 400 from a local LLM server under load should NOT
+        # immediately DISABLED_PERMANENT the API - see ApiState.java's Javadoc).
+        # config_error_flaky: returns 400 for fail_count requests, then succeeds -
+        # simulates transient overload recovering before the threshold is hit.
+        if mode == "config_error_flaky":
+            fail_count = int(params.get("fail_count", ["2"])[0])
+            if len(REQUEST_LOG) <= fail_count:
+                self._send_error(shape, "config_error", params)
+            else:
+                self._send_success(shape, body)
+            return
+
         if mode == "success":
             self._send_success(shape, body)
         else:
@@ -108,7 +121,8 @@ class Handler(BaseHTTPRequestHandler):
                           "quota_exceeded": "RESOURCE_EXHAUSTED", "server_error": "INTERNAL"}.get(mode, "UNKNOWN")
             payload = {"error": {"code": status, "message": f"mock google error: {mode}", "status": rpc_status}}
         else:  # openai
-            status_map = {"auth_fail": 401, "rate_limit": 429, "quota_exceeded": 429, "server_error": 500}
+            status_map = {"auth_fail": 401, "rate_limit": 429, "quota_exceeded": 429,
+                           "server_error": 500, "config_error": 400}
             status = status_map.get(mode, 500)
             error_code = "insufficient_quota" if mode == "quota_exceeded" else mode
             payload = {"error": {"message": error_code, "type": error_code, "code": error_code}}

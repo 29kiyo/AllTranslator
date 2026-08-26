@@ -57,6 +57,38 @@ public final class LanguageResolver {
     }
 
     /**
+     * Phase 13 bugfix: the CLIENT's own live display language (Options#languageCode
+     * via clientLanguageSupplier), ignoring ConfigModel#forcedTargetLanguage. Needed
+     * because vanilla/mod UI text scraped by the keyless widget-translation hooks
+     * (ScreenWidgetTranslationHook, LibIpnCompat, UiLibCompat) is always rendered by
+     * Minecraft's own active language system - NOT by All Translator's configured
+     * target language. If the client's live display language already equals the
+     * resolved target language, that scraped text is already in the target language
+     * and must not be re-sent to the translation API as if it were untranslated
+     * source text. Real-world bug this fixes: already-Japanese block/item names
+     * (e.g. "辰砂", "辰砂の階段") captured from a mod's own UI were sent to
+     * the LLM and "translated" into slightly different, WRONG Japanese
+     * (e.g. "辰砂" -> "赤土", "辰砂の階段" -> "朱砂の階段") - reproduced specifically
+     * when the client's Minecraft language and the configured target language were
+     * BOTH ja_jp. Falls back to DEFAULT_LANGUAGE if no supplier is wired (server
+     * side / not yet set), matching resolveTargetLanguage()'s own fallback.
+     */
+    public String resolveLiveClientLanguage() {
+        Supplier<String> supplier = clientLanguageSupplier;
+        if (supplier != null) {
+            try {
+                String clientLang = supplier.get();
+                if (clientLang != null && !clientLang.isBlank()) {
+                    return normalize(clientLang);
+                }
+            } catch (Exception e) {
+                // Never let a client-side lookup failure break translation resolution.
+            }
+        }
+        return DEFAULT_LANGUAGE;
+    }
+
+    /**
      * Phase 9 addition: best-effort shorthand/alias table so common 2-letter codes (and a
      * couple of well-known non-standard aliases, e.g. "jp" for Japanese) resolve to the
      * actual Minecraft language code without the user needing to know the exact
