@@ -144,7 +144,7 @@ public final class AllTranslatorCore {
         playerTranslationSettingsManager = new PlayerTranslationSettingsManager(configDir);
         playerTranslationSettingsManager.load();
         perPlayerLanguageResolver = new PerPlayerLanguageResolver(configManager, playerTranslationSettingsManager);
-        serverChatTranslationCoordinator = new ServerChatTranslationCoordinator(translationService, perPlayerLanguageResolver);
+        serverChatTranslationCoordinator = new ServerChatTranslationCoordinator(translationService, perPlayerLanguageResolver, configManager);
         WorldCacheConnector.install(cacheManager);
 
         // Phase 7: FTB Quests optional compatibility (detection-only skeleton; see

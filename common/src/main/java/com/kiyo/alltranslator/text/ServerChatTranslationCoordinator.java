@@ -2,6 +2,7 @@ package com.kiyo.alltranslator.text;
 
 import com.kiyo.alltranslator.AllTranslator;
 import com.kiyo.alltranslator.api.TranslationRequest;
+import com.kiyo.alltranslator.config.ConfigManager;
 import com.kiyo.alltranslator.server.PerPlayerLanguageResolver;
 import com.kiyo.alltranslator.service.TranslationService;
 
@@ -62,13 +63,17 @@ public final class ServerChatTranslationCoordinator {
 
     private final TranslationService translationService;
     private final PerPlayerLanguageResolver languageResolver;
+    private final ConfigManager configManager;
 
     /** Guards against the same (recipient, message) pair being processed twice concurrently. */
     private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 
-    public ServerChatTranslationCoordinator(TranslationService translationService, PerPlayerLanguageResolver languageResolver) {
+    public ServerChatTranslationCoordinator(TranslationService translationService,
+                                             PerPlayerLanguageResolver languageResolver,
+                                             ConfigManager configManager) {
         this.translationService = translationService;
         this.languageResolver = languageResolver;
+        this.configManager = configManager;
     }
 
     /**
@@ -123,6 +128,19 @@ public final class ServerChatTranslationCoordinator {
                     String restored = PlaceholderProtector.restore(result.translatedText(), protectedText.tokens());
                     if (restored != null && !restored.equals(plain)) {
                         MutableComponent translatedComponent = Component.literal(restored).setStyle(bodyStyle);
+                        // Phase 13 (multiplayer real-translation verification):
+                        // ARCHITECTURE.md's server-side mode has no per-recipient knowledge of
+                        // each client's own showOriginalTextInChat preference (that flag lives
+                        // only in each client's local config.json and is never synced to the
+                        // server - would need a new C2S payload, out of scope per CLAUDE.md §3).
+                        // Known, documented limitation: this uses the SERVER ADMIN's own
+                        // showOriginalTextInChat setting (configManager.model(), the server's
+                        // local config) applied uniformly to every recipient of server-side
+                        // translation, rather than each individual recipient's own preference.
+                        if (configManager.model().showOriginalTextInChat) {
+                            translatedComponent = translatedComponent.copy()
+                                    .append(Component.literal(" (" + plain + ")").setStyle(bodyStyle));
+                        }
                         outgoing = message.withUnsignedContent(translatedComponent);
                     }
                 }

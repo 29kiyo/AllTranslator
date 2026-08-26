@@ -185,6 +185,31 @@ public final class ChatTranslationCoordinator {
     public void onPlayerChatReceived(PlayerChatMessage playerChatMessage, ChatType.Bound boundChatType) {
         if (playerChatMessage == null || boundChatType == null) return;
         if (!configManager.model().translationEnabled) return;
+        // Phase 13 (real-world multiplayer testing, DEVELOPMENT_STATUS.md): confirmed the
+        // double-translation scenario ARCHITECTURE.md §20.2 already flagged as a known
+        // limitation actually happens (observed a recipient's already-server-translated text
+        // being re-translated a second time client-side, with a local LLM's non-determinism
+        // making the double-translation visibly obvious across repeated identical inputs).
+        // A full fix needs a new server->client S2C payload telling this client "the server
+        // already translated your chat, skip your own client-side pass" - that requires
+        // from-source verification of MC 26.2's CustomPacketPayload/StreamCodec API first
+        // (CLAUDE.md §3, out of scope for Phase 13) and is left for Phase 14+.
+        //
+        // Partial, no-new-network-required mitigation in the meantime: if THIS client's own
+        // local config already has serverSideChatTranslationEnabled turned on (the same flag
+        // used to opt in to Phase 6's server-side mode), assume the server may be translating
+        // for it and skip this client-side pass entirely, rather than risk re-translating
+        // already-translated text. This does not cover every case (e.g. a server admin
+        // enabling server-side mode without every client also flipping their own local copy
+        // of the same flag), but it is a reasonable, purely-local self-guard using information
+        // the client already has, and it directly addresses the reproduced scenario above.
+        if (configManager.model().serverSideChatTranslationEnabled) {
+            AllTranslator.LOGGER.debug(
+                    "Skipping client-side chat translation: serverSideChatTranslationEnabled is "
+                            + "set locally, assuming the server may already translate this message "
+                            + "(see ARCHITECTURE.md §20.2 known limitation).");
+            return;
+        }
 
         Component originalBody = playerChatMessage.decoratedContent();
         String plain = originalBody.getString();
