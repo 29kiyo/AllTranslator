@@ -56,6 +56,14 @@ public final class AllTranslatorClientCore {
         ChatTranslationCoordinator chatTranslationCoordinator = new ChatTranslationCoordinator(
                 AllTranslatorCore.translationService(), AllTranslatorCore.languageResolver(), AllTranslatorCore.configManager());
         AllTranslatorCore.installChatTranslationCoordinator(chatTranslationCoordinator);
+        // Phase 13 fix: retry-queue tick pump for ChatTranslationCoordinator's
+        // pending patches - see that class's Javadoc ("Retry queue") for why a
+        // single immediate patch attempt is not reliable. Uses the same
+        // Architectury common ClientTickEvent.CLIENT_POST already relied on by
+        // AllTranslatorKeyBindings, so this covers Fabric and NeoForge identically
+        // with no loader-specific code.
+        dev.architectury.event.events.client.ClientTickEvent.CLIENT_POST.register(
+                client -> chatTranslationCoordinator.onClientTick(client));
         // Phase 8: the shared L-keybinding that opens AllTranslatorConfigScreen. Uses
         // Architectury's common KeyMappingRegistry/ClientTickEvent (verified via javap -
         // no per-loader split needed), so registering it once here covers both Fabric

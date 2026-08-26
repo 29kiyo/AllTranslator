@@ -23,8 +23,10 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Phase 5: client-side chat translation.
@@ -40,9 +42,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *    per ARCHITECTURE.md ??8.1 - chat is intentionally excluded from the world-save
  *    persistent cache).
  *  - Once translation completes, the already-displayed chat line is patched in place
- *    on the main thread via Minecraft#execute + an Accessor/Invoker Mixin on
- *    ChatComponent (ChatComponent has no public API to replace a past line - see
- *    ChatComponentAccessor).
+ *    via an Accessor/Invoker Mixin on ChatComponent (ChatComponent has no public API
+ *    to replace a past line - see ChatComponentAccessor). See "Retry queue" below for
+ *    how/when this patch attempt actually runs.
  *  - Only the message BODY (PlayerChatMessage#decoratedContent(), no username) is
  *    sent for translation. The full displayed line is rebuilt afterwards via the
  *    SAME ChatType.Bound#decorate(...) vanilla used originally, never by string-
@@ -71,14 +73,49 @@ import java.util.concurrent.ConcurrentHashMap;
  *    the wrong one of two identical-looking lines. Already-patched entries are
  *    tracked by identity (not equals - GuiMessage is a record) so the same line is
  *    never re-matched twice.
+ *  - allMessages stores the NEWEST message at index 0 (ChatComponent#addMessage
+ *    ToDisplayQueue calls List#addFirst - confirmed via javap against the MC 26.2
+ *    merged jar). The match scan below therefore runs OLDEST-to-NEWEST (from the
+ *    end of the list), so when the exact same text is sent twice in a row and
+ *    translations complete out of send-order, each translation still prefers the
+ *    OLDEST still-unpatched candidate - matching actual send order in the common
+ *    case (Phase 13 fix, "Plan B" per DEVELOPMENT_STATUS.md).
+ *
+ * Retry queue (Phase 13 fix, real-world bug): a translation that resolves via a
+ * memory-cache hit (e.g. the exact same text translated moments earlier) completes
+ * essentially synchronously - fast enough that vanilla's OWN bookkeeping (appending
+ * the just-received line to ChatComponent#allMessages) can still be in progress or
+ * not yet reached at all, depending on the exact event-firing order relative to
+ * vanilla's own chat display code (which is not something CLAUDE.md §3 permits
+ * assuming without per-version verification, and can plausibly differ between
+ * Fabric/NeoForge). A single immediate match attempt could therefore permanently
+ * miss a line that would have matched moments later - confirmed via real-world
+ * testing (repeated identical chat text's later occurrences reliably failed to
+ * match on the very first attempt). Instead of attempting the match once
+ * synchronously, a completed translation is enqueued and retried once per client
+ * tick (see {@link #onClientTick(Minecraft)}, wired from AllTranslatorClientCore via
+ * Architectury's common ClientTickEvent.CLIENT_POST) for up to
+ * MAX_PATCH_RETRY_TICKS ticks before being given up on and logged.
  *
  * Known limitations (documented, not silently skipped - see DEVELOPMENT_STATUS.md):
  *  - If a message (signed or unsigned) scrolls out of ChatComponent's 100-entry
- *    history before the async translation completes, the patch is silently skipped.
+ *    history before the async translation completes (or before the retry budget
+ *    below is exhausted), the patch is silently skipped.
  *  - System/disguised chat (no PlayerChatMessage at all - death messages, /me via
  *    disguised chat, etc.) is out of scope for Phase 5.
  */
 public final class ChatTranslationCoordinator {
+
+    /**
+     * Max number of client ticks a completed translation will keep retrying to find
+     * its matching displayed line before being given up on. 20 ticks is ~1 second at
+     * the vanilla 20 TPS client tick rate - comfortably longer than the gap between
+     * this coordinator's chat-receive listener firing and vanilla appending the line
+     * to ChatComponent#allMessages ever ought to take, while still bounded so a
+     * genuinely-unmatchable patch (e.g. the line already scrolled out of the
+     * 100-entry history) does not accumulate forever in {@link #pendingPatches}.
+     */
+    private static final int MAX_PATCH_RETRY_TICKS = 20;
 
     private final TranslationService translationService;
     private final LanguageResolver languageResolver;
@@ -95,6 +132,37 @@ public final class ChatTranslationCoordinator {
      */
     private final Set<GuiMessage> patchedUnsigned = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Deque<GuiMessage> patchedUnsignedOrder = new ArrayDeque<>();
+
+    /**
+     * Completed translations awaiting a matching displayed line - see "Retry queue"
+     * in the class Javadoc. Added to from the async translation-completion callback
+     * (any thread), drained only from {@link #onClientTick(Minecraft)} (main thread).
+     */
+    private final Queue<PendingPatch> pendingPatches = new ConcurrentLinkedQueue<>();
+
+    /** Mutable holder for a single completed-translation patch attempt in flight; see {@link #pendingPatches}. */
+    private static final class PendingPatch {
+        final @Nullable MessageSignature signature;
+        final String expectedOriginalLine;
+        final int tickAtReceipt;
+        final ChatType.Bound boundChatType;
+        final String translatedBody;
+        final Style bodyStyle;
+        final String originalPlainForSuffix;
+        /** Main-thread only (only ever read/written from onClientTick). */
+        int attempts;
+
+        PendingPatch(@Nullable MessageSignature signature, String expectedOriginalLine, int tickAtReceipt,
+                     ChatType.Bound boundChatType, String translatedBody, Style bodyStyle, String originalPlainForSuffix) {
+            this.signature = signature;
+            this.expectedOriginalLine = expectedOriginalLine;
+            this.tickAtReceipt = tickAtReceipt;
+            this.boundChatType = boundChatType;
+            this.translatedBody = translatedBody;
+            this.bodyStyle = bodyStyle;
+            this.originalPlainForSuffix = originalPlainForSuffix;
+        }
+    }
 
     public ChatTranslationCoordinator(TranslationService translationService,
                                        LanguageResolver languageResolver,
@@ -152,47 +220,92 @@ public final class ChatTranslationCoordinator {
             if (restored == null || restored.equals(plain)) return;
 
             Style bodyStyle = originalBody.getStyle();
-            mc.execute(() -> patchDisplayedLine(
-                    mc, signature, expectedOriginalLine, tickAtReceipt, boundChatType, restored, bodyStyle, plain));
+            // Phase 13 fix: enqueue for the retry loop instead of a single immediate
+            // mc.execute() attempt - see "Retry queue" in the class Javadoc for why a
+            // single attempt is not reliable, especially on a memory-cache-hit
+            // translation that completes almost synchronously.
+            pendingPatches.add(new PendingPatch(
+                    signature, expectedOriginalLine, tickAtReceipt, boundChatType, restored, bodyStyle, plain));
         });
     }
 
-    private void patchDisplayedLine(Minecraft mc, @Nullable MessageSignature signature, String expectedOriginalLine,
-                                     int tickAtReceipt, ChatType.Bound boundChatType, String translatedBody, Style bodyStyle,
-                                     String originalPlainForSuffix) {
-        if (mc.player == null) return; // disconnected before translation finished
+    /**
+     * Must be called once per client tick from a confirmed physical-client entrypoint
+     * (wired from AllTranslatorClientCore via Architectury's common
+     * ClientTickEvent.CLIENT_POST, which already runs on the main/client thread - see
+     * AllTranslatorKeyBindings for the established pattern this follows). Drains
+     * {@link #pendingPatches}, retrying each entry's match attempt; entries that
+     * still don't match are re-queued (with an incremented attempt count) for the
+     * next tick, up to {@link #MAX_PATCH_RETRY_TICKS} attempts, after which they are
+     * dropped and logged. See "Retry queue" in the class Javadoc.
+     */
+    public void onClientTick(Minecraft mc) {
+        if (pendingPatches.isEmpty()) return;
+
+        // Snapshot the current size so we process each entry present at the start of
+        // this tick exactly once, instead of potentially looping forever over
+        // entries re-added to the tail of the same queue within this same tick.
+        int snapshotSize = pendingPatches.size();
+        for (int i = 0; i < snapshotSize; i++) {
+            PendingPatch patch = pendingPatches.poll();
+            if (patch == null) break;
+
+            if (tryPatchDisplayedLine(mc, patch)) {
+                continue;
+            }
+
+            patch.attempts++;
+            if (patch.attempts >= MAX_PATCH_RETRY_TICKS) {
+                AllTranslator.LOGGER.warn(
+                        "Chat translation patch: gave up after {} ticks, no matching line found for '{}'",
+                        MAX_PATCH_RETRY_TICKS, patch.translatedBody);
+            } else {
+                pendingPatches.add(patch);
+            }
+        }
+    }
+
+    /**
+     * Single match-and-patch attempt for one pending entry.
+     *
+     * @return true if the entry is fully resolved (either successfully patched, or
+     *         abandoned because the player disconnected) and should be dropped by
+     *         the caller; false if no matching line was found THIS attempt and the
+     *         caller should retry on a later tick.
+     */
+    private boolean tryPatchDisplayedLine(Minecraft mc, PendingPatch patch) {
+        if (mc.player == null) return true; // disconnected before a match was found - nothing more to do
 
         ChatComponent chat = mc.gui.hud.getChat();
         ChatComponentAccessor accessor = (ChatComponentAccessor) chat;
         List<GuiMessage> messages = accessor.alltranslator$getAllMessages();
 
         int targetIndex = -1;
-        for (int i = 0; i < messages.size(); i++) {
+        for (int i = messages.size() - 1; i >= 0; i--) {
             GuiMessage existing = messages.get(i);
-            if (signature != null) {
-                if (signature.equals(existing.signature())) {
+            if (patch.signature != null) {
+                if (patch.signature.equals(existing.signature())) {
                     targetIndex = i;
                     break;
                 }
             } else if (existing.signature() == null
-                    && existing.addedTime() >= tickAtReceipt
+                    && existing.addedTime() >= patch.tickAtReceipt
                     && !patchedUnsigned.contains(existing)
-                    && existing.content().getString().equals(expectedOriginalLine)) {
+                    && existing.content().getString().equals(patch.expectedOriginalLine)) {
                 targetIndex = i;
                 break;
             }
         }
         if (targetIndex == -1) {
-            // Scrolled out of history, or (unsigned case) no matching line found yet - skip.
-            return;
+            return false; // not found yet (or genuinely scrolled out) - caller decides whether to retry
         }
 
         GuiMessage existing = messages.get(targetIndex);
-        if (signature == null) {
+        if (patch.signature == null) {
             markPatched(existing);
         }
 
-        MutableComponent translatedComponent = Component.literal(translatedBody).setStyle(bodyStyle);
+        MutableComponent translatedComponent = Component.literal(patch.translatedBody).setStyle(patch.bodyStyle);
         // Phase 13: optional "(original text)" suffix, OFF by default (ConfigModel
         // #showOriginalTextInChat). originalPlainForSuffix is the pre-translation
         // plain body (no username/formatting), matching what was actually sent to
@@ -200,11 +313,12 @@ public final class ChatTranslationCoordinator {
         // decorated username and would look wrong repeated inline.
         if (configManager.model().showOriginalTextInChat) {
             translatedComponent = translatedComponent.copy()
-                    .append(Component.literal(" (" + originalPlainForSuffix + ")").setStyle(bodyStyle));
+                    .append(Component.literal(" (" + patch.originalPlainForSuffix + ")").setStyle(patch.bodyStyle));
         }
-        Component redecorated = boundChatType.decorate(translatedComponent);
+        Component redecorated = patch.boundChatType.decorate(translatedComponent);
         messages.set(targetIndex, new GuiMessage(existing.addedTime(), redecorated, existing.signature(), existing.source(), existing.tag()));
         accessor.alltranslator$refreshTrimmedMessages();
+        return true;
     }
 
     private void markPatched(GuiMessage message) {
