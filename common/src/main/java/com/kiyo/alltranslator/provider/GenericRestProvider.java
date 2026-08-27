@@ -9,6 +9,7 @@ import com.kiyo.alltranslator.api.TranslationException;
 import com.kiyo.alltranslator.api.TranslationProvider;
 import com.kiyo.alltranslator.api.TranslationRequest;
 import com.kiyo.alltranslator.api.TranslationResult;
+import com.kiyo.alltranslator.service.InFlightCallRegistry;
 import com.kiyo.alltranslator.service.TranslationApiConfig;
 
 import java.net.URI;
@@ -47,7 +48,7 @@ public final class GenericRestProvider implements TranslationProvider {
     public ProviderType type() { return ProviderType.GENERIC_REST; }
 
     @Override
-    public CompletableFuture<TranslationResult> translate(TranslationRequest request, TranslationApiConfig config, String rawApiKey) {
+    public CompletableFuture<TranslationResult> translate(TranslationRequest request, TranslationApiConfig config, String rawApiKey, InFlightCallRegistry registry) {
         if (rawApiKey == null || rawApiKey.isBlank()) {
             CompletableFuture<TranslationResult> failed = new CompletableFuture<>();
             failed.completeExceptionally(new TranslationException(ApiFailureType.CONFIG_ERROR, -1,
@@ -73,7 +74,10 @@ public final class GenericRestProvider implements TranslationProvider {
                 .POST(HttpRequest.BodyPublishers.ofString(bodyJson))
                 .build();
 
-        return httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
+        CompletableFuture<HttpResponse<String>> rawCall = httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString());
+        java.util.UUID callId = registry.register(rawCall);
+        return rawCall
+                .whenComplete((r, t) -> registry.unregister(callId))
                 .thenApply(response -> {
                     int status = response.statusCode();
                     if (status != 200) {

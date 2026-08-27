@@ -96,6 +96,23 @@ public final class ApiState {
         lastSuccess = Instant.now();
     }
 
+    /**
+     * Phase 14 (/alltranslator refresh): clears cooldown/rate-limit/temp-
+     * unavailable state back to AVAILABLE WITHOUT touching lastSuccess/
+     * lastFailure or the Phase 11 single-flight probing flag - deliberately
+     * distinct from recordSuccess(). This does not mean "a translation actually
+     * succeeded," it means "an admin wants this API to get another immediate
+     * chance." An API that has never yet had a real success still goes through
+     * the normal single-flight probe path (tryReserveProbe()) on its very next
+     * attempt after this, which is the correct, safe behavior - refresh should
+     * not fake confidence the API hasn't actually earned yet.
+     */
+    public synchronized void forceAvailable() {
+        status = ApiStatus.AVAILABLE;
+        cooldownUntil = null;
+        consecutiveFailures = 0;
+    }
+
     public synchronized void recordFailure(ApiFailureType failureType) {
         lastFailure = Instant.now();
         consecutiveFailures++;

@@ -16,12 +16,21 @@ import java.util.regex.Pattern;
  *  - percent-name: %player% %target% ...
  *  - legacy formatting codes: §0-9a-fk-or
  *
- * Not yet wired into the Phase 4 hooks (item/entity/tooltip text is translated as
- * plain literal strings extracted via Component#getString(), which do not carry
- * placeholders or formatting codes - those live in the Component's Style, which
- * Phase 4 already preserves separately by copying original.getStyle()). This class
- * exists now because Phase 5 (chat) and dynamic mod text (Phase 7, FTB Quests) will
- * need it for raw text that DOES contain inline placeholders/codes.
+ * Phase 14 finding (CLAUDE.md §21): some mods (confirmed with Traveler's
+ * Backpack) DO embed raw legacy formatting codes directly as literal
+ * characters inside a Component's own text - Component#getString() includes
+ * them, disproving this class's original assumption that Phase 4 never needed
+ * it. However, hiding such codes behind THIS class's private-use-area marker
+ * tokens was tried and found to actively make things worse against this
+ * project's local 7B LLM backend, which reliably strips unfamiliar PUA
+ * characters from its output entirely (real-world testing via persistent
+ * cache inspection - see LocalizedTextResolver#resolve()'s Javadoc for the
+ * fix actually used instead: splitting the source text into per-color-run
+ * segments and translating each independently, never sending the codes
+ * themselves to any translation backend at all). This class remains
+ * available/correct for genuine %placeholder%-style tokens where round-
+ * tripping through the API is unavoidable (Phase 5 chat, Phase 7 FTB Quests),
+ * but is deliberately NOT used for legacy §-color-code protection.
  */
 public final class PlaceholderProtector {
 

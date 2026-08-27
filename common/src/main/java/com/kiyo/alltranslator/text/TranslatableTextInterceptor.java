@@ -53,6 +53,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * widget) is still created in AllTranslatorClientCore, client-side only - see that
  * class for why these must never be constructed from common's AllTranslatorCore.init() -
  * but they now cooperate via shared static state rather than being fully isolated.
+ *
+ * Phase 14 note: embedded legacy §-color-code handling (e.g. Traveler's Backpack
+ * tooltip lines like "§6Backpack Tier: §4Leather") lives in
+ * LocalizedTextResolver#resolve(), NOT here - see that class's Javadoc. This class
+ * stays a thin, format-agnostic Component<->String bridge.
  */
 public final class TranslatableTextInterceptor {
     private final LocalizedTextResolver resolver;

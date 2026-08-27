@@ -13,14 +13,19 @@ import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.PermissionCheck;
+import net.minecraft.server.players.NameAndId;
 
+import java.util.List;
 import java.util.function.Predicate;
 
 /**
@@ -74,22 +79,73 @@ public final class CommandHandlers {
                 .then(literal("enable")
                         .executes(ctx -> setEnabled(ctx.getSource(), ctx.getSource().getPlayerOrException(), true))
                         .then(argument("player", EntityArgument.player())
+                                .suggests(PLAYER_SUGGESTIONS)
                                 .executes(ctx -> setEnabled(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), true))))
                 .then(literal("disable")
                         .executes(ctx -> setEnabled(ctx.getSource(), ctx.getSource().getPlayerOrException(), false))
                         .then(argument("player", EntityArgument.player())
+                                .suggests(PLAYER_SUGGESTIONS)
                                 .executes(ctx -> setEnabled(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), false))))
                 .then(literal("status")
                         .executes(ctx -> status(ctx.getSource(), ctx.getSource().getPlayerOrException()))
                         .then(argument("player", EntityArgument.player())
+                                .suggests(PLAYER_SUGGESTIONS)
                                 .executes(ctx -> status(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                 .then(literal("language")
                         .then(argument("code", StringArgumentType.word())
                                 .executes(ctx -> setLanguage(ctx.getSource(), ctx.getSource().getPlayerOrException(),
                                         StringArgumentType.getString(ctx, "code")))
                                 .then(argument("player", EntityArgument.player())
+                                        .suggests(PLAYER_SUGGESTIONS)
                                         .executes(ctx -> setLanguage(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"),
-                                                StringArgumentType.getString(ctx, "code"))))));
+                                                StringArgumentType.getString(ctx, "code"))))))
+                .then(literal("refresh")
+                        .requires(CommandHandlers::canRefresh)
+                        .executes(ctx -> refresh(ctx.getSource())));
+    }
+
+    /**
+     * Phase 14: non-OP sources only ever see their own name as a "<player>"
+     * candidate. EntityArgument.player()'s default suggestor lists every online
+     * player regardless of whether the invoker could actually target them -
+     * requireSelfOrOp() already blocks EXECUTION against another player for a
+     * non-OP invoker, but without this the tab-completion list itself still
+     * leaked every online player's name to every player.
+     */
+    private static final SuggestionProvider<CommandSourceStack> PLAYER_SUGGESTIONS = (ctx, builder) -> {
+        CommandSourceStack source = ctx.getSource();
+        if (Commands.LEVEL_GAMEMASTERS.check(source.permissions())) {
+            return SharedSuggestionProvider.suggest(source.getOnlinePlayerNames(), builder);
+        }
+        ServerPlayer invoker = source.getPlayer();
+        List<String> selfOnly = invoker != null ? List.of(invoker.getGameProfile().name()) : List.of();
+        return SharedSuggestionProvider.suggest(selfOnly, builder);
+    };
+
+    /**
+     * Phase 14: permission gate for /alltranslator refresh. Unlike enable/
+     * disable/status/language, refresh has no "target player" concept - it acts
+     * on server-wide translation API state - so gating the whole node with
+     * .requires(...) here is correct (no "@s"-style self-targeting branch to
+     * accidentally hide, unlike those subcommands - see their Javadoc above).
+     *
+     * Allowed for: OPs (LEVEL_GAMEMASTERS), OR - verified via javap against MC
+     * 26.2's actual MinecraftServer/IntegratedServer#isSingleplayerOwner(NameAndId)
+     * - the singleplayer world's own owner, REGARDLESS of that world's "Allow
+     * Cheats" setting. Deliberate: refresh only resets All Translator's own
+     * internal API health/queue bookkeeping and never touches the actual game
+     * world, so it doesn't need the same bar as a true cheat command - a
+     * singleplayer owner stuck behind an overloaded local LLM server shouldn't
+     * have to enable cheats just to unstick their own translation mod.
+     */
+    private static boolean canRefresh(CommandSourceStack source) {
+        if (Commands.LEVEL_GAMEMASTERS.check(source.permissions())) return true;
+        MinecraftServer server = source.getServer();
+        ServerPlayer invoker = source.getPlayer();
+        if (server != null && invoker != null && server.isSingleplayer()) {
+            return server.isSingleplayerOwner(new NameAndId(invoker.getGameProfile()));
+        }
+        return false;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> literal(String name) {
@@ -160,6 +216,19 @@ public final class CommandHandlers {
         source.sendSuccess(() -> Component.literal("  Language override: "
                 + (raw.languageOverride() == null ? "(none, uses client-reported language)" : raw.languageOverride())), false);
         source.sendSuccess(() -> Component.literal("  Resolved target language: " + resolver.resolve(target)), false);
+        return 1;
+    }
+
+    /**
+     * Phase 14: backing executor for /alltranslator refresh. See
+     * TranslationService#refresh() for what this actually does (cancels
+     * in-flight HTTP calls, clears duplicate-request bookkeeping, resets
+     * cooldown/rate-limit state on non-permanently-disabled APIs).
+     */
+    private static int refresh(CommandSourceStack source) {
+        var result = AllTranslatorCore.translationService().refresh();
+        source.sendSuccess(() -> Component.literal("[All Translator] Refresh: cancelled "
+                + result.cancelledCalls() + " call(s), reset " + result.resetApis() + " API(s)."), true);
         return 1;
     }
 }

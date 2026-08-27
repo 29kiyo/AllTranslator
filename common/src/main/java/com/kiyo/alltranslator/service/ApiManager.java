@@ -57,4 +57,23 @@ public final class ApiManager {
     public void resetState(UUID configId) {
         states.put(configId, new ApiState(configId));
     }
+
+    /**
+     * Phase 14 (/alltranslator refresh): resets cooldown/rate-limit/temp-
+     * unavailable state back to AVAILABLE for every API that ISN'T
+     * DISABLED_PERMANENT (an invalid key or genuinely broken config still needs
+     * an actual fix via the config screen - resetState() above remains the
+     * correct path for that case specifically). Returns how many states were
+     * touched, for the command to report to the user.
+     */
+    public synchronized int refreshAll() {
+        int count = 0;
+        for (ApiState state : states.values()) {
+            if (state.status() != ApiStatus.DISABLED_PERMANENT) {
+                state.forceAvailable();
+                count++;
+            }
+        }
+        return count;
+    }
 }

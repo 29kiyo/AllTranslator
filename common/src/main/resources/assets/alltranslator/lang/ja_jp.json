@@ -1,7 +1,6 @@
 {
   "key.category.alltranslator.general": "All Translator",
   "key.alltranslator.open_config": "All Translator 設定を開く",
-
   "gui.alltranslator.config.title": "All Translator",
   "gui.alltranslator.config.translation": "翻訳",
   "gui.alltranslator.config.translation_enabled": "翻訳の有効化",
@@ -20,7 +19,6 @@
   "gui.alltranslator.config.translate_other_screens": "他Modの画面も翻訳",
   "gui.alltranslator.config.manage_apis": "翻訳APIを管理",
   "gui.alltranslator.config.api_count": "%s件のAPI設定",
-
   "gui.alltranslator.apiedit.title_add": "All Translator - API追加",
   "gui.alltranslator.apiedit.title_edit": "All Translator - API編集",
   "gui.alltranslator.apiedit.display_name": "表示名",
@@ -38,7 +36,6 @@
   "gui.alltranslator.apiedit.enabled": "有効",
   "gui.alltranslator.apiedit.timeout_seconds": "タイムアウト(秒)",
   "gui.alltranslator.apiedit.fetch_models": "モデルを取得",
-
   "gui.alltranslator.apilist.title": "All Translator - API一覧",
   "gui.alltranslator.apilist.no_apis": "まだAPIが設定されていません。下の「API追加」から追加してください。",
   "gui.alltranslator.apilist.enable": "有効化",
@@ -47,7 +44,7 @@
   "gui.alltranslator.apilist.add_api": "API追加",
   "gui.alltranslator.apilist.prev": "< 前へ",
   "gui.alltranslator.apilist.next": "次へ >",
-
   "toast.alltranslator.title": "All Translator",
-  "toast.alltranslator.api_failure": "%s: %s"
+  "toast.alltranslator.api_failure": "%s: %s",
+  "gui.alltranslator.config.max_concurrent_requests": "同時リクエスト数上限"
 }

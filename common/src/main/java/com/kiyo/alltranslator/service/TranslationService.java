@@ -11,6 +11,7 @@ import com.kiyo.alltranslator.config.CredentialStore;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -38,21 +39,14 @@ import com.kiyo.alltranslator.AllTranslator;
  * (MAX_CONCURRENT_HTTP_REQUESTS permits) now gates actual request dispatch: a
  * permit is acquired right before provider.translate() is called and released in
  * whenComplete(), regardless of success/failure, so this bounds true concurrent
- * in-flight HTTP calls across all APIs combined. Not yet exposed as a config/UI
- * setting - hardcoded here for now (README documents this as a fixed limit).
+ * in-flight HTTP calls across all APIs combined. Phase 14: now configurable via
+ * ConfigModel#maxConcurrentHttpRequests / setMaxConcurrentHttpRequests(int)
+ * below (was hardcoded here originally - see git history for the Phase 13 fix
+ * this class Javadoc otherwise still describes accurately).
  */
 public final class TranslationService {
 
     private static final int CACHE_VERSION = 1;
-
-    /**
-     * Max simultaneous in-flight HTTP translation requests across all configured
-     * APIs. See class Javadoc (Phase 13 fix) for why this exists separately from
-     * asyncExecutor's thread count. 3 is a conservative default chosen to stay
-     * comfortably under a typical local-LLM server's slot count (e.g. LM Studio's
-     * observed default of 4) while still allowing some parallelism for cloud APIs.
-     */
-    private static final int MAX_CONCURRENT_HTTP_REQUESTS = 3;
 
     private final ApiManager apiManager;
     private final CacheManager cacheManager;
@@ -60,7 +54,16 @@ public final class TranslationService {
     private final Map<ProviderType, TranslationProvider> providers;
     private final PendingRequestMap pendingRequests;
     private final Executor asyncExecutor;
-    private final Semaphore inFlightHttpRequests = new Semaphore(MAX_CONCURRENT_HTTP_REQUESTS);
+    private final ResizableSemaphore inFlightHttpRequests;
+
+    /**
+     * Phase 14 (/alltranslator refresh): registry of raw in-flight HTTP calls
+     * across all providers, so an admin can force-cancel requests already sent
+     * to an overloaded/stuck server (e.g. a local LLM). See
+     * InFlightCallRegistry's own Javadoc for why cancelling a .thenApply()-
+     * derived stage alone would NOT have worked.
+     */
+    private final InFlightCallRegistry inFlightCallRegistry = new InFlightCallRegistry();
 
     /**
      * Phase 13: optional failure listener (API display name, failure type as a
@@ -81,13 +84,26 @@ public final class TranslationService {
                                CredentialStore credentialStore,
                                Map<ProviderType, TranslationProvider> providers,
                                PendingRequestMap pendingRequests,
-                               Executor asyncExecutor) {
+                               Executor asyncExecutor,
+                               int initialMaxConcurrentHttpRequests) {
         this.apiManager = apiManager;
         this.cacheManager = cacheManager;
         this.credentialStore = credentialStore;
         this.providers = providers;
         this.pendingRequests = pendingRequests;
         this.asyncExecutor = asyncExecutor;
+        this.inFlightHttpRequests = new ResizableSemaphore(Math.max(1, initialMaxConcurrentHttpRequests));
+    }
+
+    /**
+     * Phase 14: lets the config screen change the simultaneous in-flight HTTP
+     * request limit at runtime without restarting the mod. See
+     * ResizableSemaphore's Javadoc for how this is done safely on top of
+     * java.util.concurrent.Semaphore, which has no built-in "set total permits"
+     * operation.
+     */
+    public void setMaxConcurrentHttpRequests(int max) {
+        inFlightHttpRequests.setTotalPermits(max);
     }
 
     /**
@@ -172,7 +188,7 @@ public final class TranslationService {
                 // exceptions), but never let permit bookkeeping crash a translation.
             }
         }, asyncExecutor)
-                .thenCompose(v -> provider.translate(request, candidate, rawKey))
+                .thenCompose(v -> provider.translate(request, candidate, rawKey, inFlightCallRegistry))
                 .whenComplete((result, error) -> {
                     inFlightHttpRequests.release();
                     if (tookReservation && state != null) {
@@ -190,6 +206,20 @@ public final class TranslationService {
                         resultFuture.complete(tagged);
                     } else {
                         Throwable cause = error instanceof CompletionException ? error.getCause() : error;
+
+                        if (cause instanceof CancellationException) {
+                            // Phase 14 (/alltranslator refresh): this specific HTTP call was
+                            // force-cancelled by an admin, not a genuine provider failure. Don't
+                            // record this against the API's health/cooldown state, and don't
+                            // cascade into trying the next candidate for THIS request either -
+                            // refresh is an explicit "stop now" signal, so honor it by falling
+                            // back to the original text immediately, same as candidate
+                            // exhaustion. A later, fresh translate() call (new request) will
+                            // retry normally once whatever caused the pile-up has cleared.
+                            resultFuture.complete(TranslationResult.original(request.sourceText(), request.targetLang()));
+                            return;
+                        }
+
                         ApiFailureType failureType = (cause instanceof TranslationException)
                                 ? ((TranslationException) cause).failureType()
                                 : provider.classifyError(cause, -1);
@@ -218,4 +248,19 @@ public final class TranslationService {
                     }
                 });
     }
+
+    /**
+     * Phase 14: backing implementation for /alltranslator refresh. See
+     * ApiManager#refreshAll(), PendingRequestMap#clear(), and
+     * InFlightCallRegistry#cancelAll() for what each piece actually does.
+     */
+    public RefreshResult refresh() {
+        int cancelledCalls = inFlightCallRegistry.cancelAll();
+        pendingRequests.clear();
+        int resetApis = apiManager.refreshAll();
+        return new RefreshResult(cancelledCalls, resetApis);
+    }
+
+    /** Summary of a refresh() call, for the command to report back to the user. */
+    public record RefreshResult(int cancelledCalls, int resetApis) {}
 }

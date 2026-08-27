@@ -48,6 +48,7 @@ public final class AllTranslatorConfigScreen extends Screen {
     private int labelMemCacheY;
     private int labelTtlY;
     private int labelShowOriginalNameY;
+    private int labelMaxConcurrentY;
 
     private int labelGoogleFreeY;
     private int labelShowOriginalY;
@@ -64,6 +65,7 @@ public final class AllTranslatorConfigScreen extends Screen {
     private EditBox memoryCacheBox;
     private EditBox ttlBox;
     private CycleButton<Boolean> showOriginalNameButton;
+    private EditBox maxConcurrentBox;
 
     private CycleButton<Boolean> googleFreeButton;
     private CycleButton<Boolean> showOriginalTextButton;
@@ -131,6 +133,13 @@ public final class AllTranslatorConfigScreen extends Screen {
         showOriginalNameButton = CycleButton.onOffBuilder(model.showOriginalNameOnItems)
                 .create(leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.show_original_on_items"));
         this.addRenderableWidget(showOriginalNameButton);
+        y += ROW_HEIGHT;
+
+        labelMaxConcurrentY = y;
+        maxConcurrentBox = new EditBox(this.font, leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.max_concurrent_requests"));
+        maxConcurrentBox.setMaxLength(3);
+        maxConcurrentBox.setValue(String.valueOf(model.maxConcurrentHttpRequests));
+        this.addRenderableWidget(maxConcurrentBox);
         y += ROW_HEIGHT;
 
         int leftColumnBottom = y;
@@ -214,6 +223,10 @@ public final class AllTranslatorConfigScreen extends Screen {
             model.dynamicTextCacheTtlDays = Integer.parseInt(ttlBox.getValue().trim());
         } catch (NumberFormatException ignored) {
         }
+        try {
+            model.maxConcurrentHttpRequests = Integer.parseInt(maxConcurrentBox.getValue().trim());
+        } catch (NumberFormatException ignored) {
+        }
 
         boolean wantGoogleOn = googleFreeButton.getValue();
         Optional<TranslationApiConfig> existing = findGoogleFree();
@@ -235,6 +248,9 @@ public final class AllTranslatorConfigScreen extends Screen {
         if (AllTranslatorCore.apiManager() != null) {
             AllTranslatorCore.apiManager().reload(model.apis);
         }
+        if (AllTranslatorCore.translationService() != null) {
+            AllTranslatorCore.translationService().setMaxConcurrentHttpRequests(model.maxConcurrentHttpRequests);
+        }
     }
 
     @Override
@@ -254,6 +270,7 @@ public final class AllTranslatorConfigScreen extends Screen {
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.memory_cache_capacity"), leftX, labelMemCacheY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.dynamic_text_ttl"), leftX, labelTtlY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.show_original_on_items"), leftX, labelShowOriginalNameY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.max_concurrent_requests"), leftX, labelMaxConcurrentY, LABEL_COLOR);
 
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.google_free"), rightX, labelGoogleFreeY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.show_original_in_chat_label"), rightX, labelShowOriginalY, LABEL_COLOR);

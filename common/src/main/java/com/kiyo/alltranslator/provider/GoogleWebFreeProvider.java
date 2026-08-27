@@ -9,6 +9,7 @@ import com.kiyo.alltranslator.api.TranslationException;
 import com.kiyo.alltranslator.api.TranslationProvider;
 import com.kiyo.alltranslator.api.TranslationRequest;
 import com.kiyo.alltranslator.api.TranslationResult;
+import com.kiyo.alltranslator.service.InFlightCallRegistry;
 import com.kiyo.alltranslator.service.TranslationApiConfig;
 
 import java.net.URI;
@@ -53,7 +54,7 @@ public final class GoogleWebFreeProvider implements TranslationProvider {
     public ProviderType type() { return ProviderType.GOOGLE_WEB_FREE; }
 
     @Override
-    public CompletableFuture<TranslationResult> translate(TranslationRequest request, TranslationApiConfig config, String rawApiKey) {
+    public CompletableFuture<TranslationResult> translate(TranslationRequest request, TranslationApiConfig config, String rawApiKey, InFlightCallRegistry registry) {
         String googleLang = mapToGoogleLanguageCode(request.targetLang());
         String encodedText = URLEncoder.encode(request.sourceText(), StandardCharsets.UTF_8);
         String url = config.endpoint() + "?client=gtx&sl=auto&tl=" + googleLang + "&dt=t&q=" + encodedText;
@@ -65,7 +66,10 @@ public final class GoogleWebFreeProvider implements TranslationProvider {
                 .GET()
                 .build();
 
-        return httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
+        CompletableFuture<HttpResponse<String>> rawCall = httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString());
+        java.util.UUID callId = registry.register(rawCall);
+        return rawCall
+                .whenComplete((r, t) -> registry.unregister(callId))
                 .thenApply(response -> {
                     int status = response.statusCode();
                     if (status != 200) {

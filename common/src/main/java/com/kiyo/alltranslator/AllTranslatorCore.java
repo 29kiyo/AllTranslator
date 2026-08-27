@@ -122,7 +122,8 @@ public final class AllTranslatorCore {
                 credentialStore,
                 ProviderFactory.createDefaultProviders(httpClient),
                 new PendingRequestMap(),
-                executor
+                executor,
+                config.maxConcurrentHttpRequests
         );
 
         // Language resolution: forced config override -> client's own MC language -> en_us.

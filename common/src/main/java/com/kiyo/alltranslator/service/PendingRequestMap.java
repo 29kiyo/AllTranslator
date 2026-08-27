@@ -24,4 +24,18 @@ public final class PendingRequestMap {
         newFuture.whenComplete((r, t) -> pending.remove(key, newFuture));
         return null;
     }
+
+    /**
+     * Phase 14 (/alltranslator refresh): drops all in-flight duplicate-merge
+     * bookkeeping entries. This does NOT itself cancel any CompletableFuture
+     * that was registered here - TranslationService#refresh() handles actually
+     * aborting the underlying HTTP calls separately via InFlightCallRegistry.
+     * This only stops FUTURE duplicate requests for the same cache key from
+     * merging onto a stale/abandoned entry; whichever caller still holds a
+     * reference to an existing entry still receives its eventual completion (or
+     * cancellation) normally.
+     */
+    public void clear() {
+        pending.clear();
+    }
 }

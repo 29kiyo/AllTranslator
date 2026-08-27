@@ -1,7 +1,6 @@
 {
   "key.category.alltranslator.general": "All Translator",
   "key.alltranslator.open_config": "Open All Translator Config",
-
   "gui.alltranslator.config.title": "All Translator",
   "gui.alltranslator.config.translation": "Translation",
   "gui.alltranslator.config.translation_enabled": "Translation Enabled",
@@ -20,7 +19,6 @@
   "gui.alltranslator.config.translate_other_screens": "Translate Other Mod Screens",
   "gui.alltranslator.config.manage_apis": "Manage Translation APIs",
   "gui.alltranslator.config.api_count": "%s API configuration(s)",
-
   "gui.alltranslator.apiedit.title_add": "All Translator - Add API",
   "gui.alltranslator.apiedit.title_edit": "All Translator - Edit API",
   "gui.alltranslator.apiedit.display_name": "Display Name",
@@ -38,7 +36,6 @@
   "gui.alltranslator.apiedit.enabled": "Enabled",
   "gui.alltranslator.apiedit.timeout_seconds": "Timeout (sec)",
   "gui.alltranslator.apiedit.fetch_models": "Fetch Models",
-
   "gui.alltranslator.apilist.title": "All Translator - APIs",
   "gui.alltranslator.apilist.no_apis": "No APIs configured yet - use Add API below.",
   "gui.alltranslator.apilist.enable": "Enable",
@@ -47,7 +44,7 @@
   "gui.alltranslator.apilist.add_api": "Add API",
   "gui.alltranslator.apilist.prev": "< Prev",
   "gui.alltranslator.apilist.next": "Next >",
-
   "toast.alltranslator.title": "All Translator",
-  "toast.alltranslator.api_failure": "%s: %s"
+  "toast.alltranslator.api_failure": "%s: %s",
+  "gui.alltranslator.config.max_concurrent_requests": "Max concurrent requests"
 }

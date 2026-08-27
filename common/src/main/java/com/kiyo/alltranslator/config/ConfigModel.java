@@ -12,6 +12,16 @@ public final class ConfigModel {
 
     public int memoryCacheCapacity = 2000;
     public int dynamicTextCacheTtlDays = 30; // Phase 3+, dynamic/keyless content
+    /**
+     * Phase 14: max simultaneous in-flight HTTP translation requests across all
+     * configured APIs combined (not per-API - failover is priority-ordered
+     * sequential, not parallel-per-API). Was hardcoded in TranslationService as
+     * MAX_CONCURRENT_HTTP_REQUESTS (Phase 13 fix); now user-configurable so
+     * local-LLM users with more/less VRAM headroom (or cloud-only users with no
+     * local server to protect) can tune it without a code change. Default 3
+     * matches the original Phase 13 hardcoded value.
+     */
+    public int maxConcurrentHttpRequests = 3;
 
     /**
      * Every configured API, including the keyless GOOGLE_WEB_FREE provider
