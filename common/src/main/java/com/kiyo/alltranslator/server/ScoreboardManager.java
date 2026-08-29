@@ -161,7 +161,17 @@ public final class ScoreboardManager {
         ApiState state = AllTranslatorCore.apiManager().getState(api.id());
         String colorCode;
         String abbrev;
-        ApiStatus status = state == null ? ApiStatus.AVAILABLE : state.status();
+        // Phase 14 fix (real-world bug): ApiState#status() only flips back to AVAILABLE
+        // when a translation actually SUCCEEDS again - it does not update merely because
+        // the cooldown window has elapsed, so the scoreboard kept showing a stale
+        // COOLDOWN/ERROR label for however long nobody happened to trigger a new
+        // translation attempt (observed: ~5 minutes of "stuck" ERROR after the actual
+        // cooldown had long since passed). isUsableNow() is the correct live check here
+        // (same logic ApiManager's own candidate-selection already trusts) - if the
+        // cooldown has passed, the API IS available again for display purposes even
+        // before the next real attempt confirms it with a fresh success.
+        ApiStatus status = state == null ? ApiStatus.AVAILABLE
+                : (state.isUsableNow() ? ApiStatus.AVAILABLE : state.status());
         switch (status) {
             case AVAILABLE -> { colorCode = "\u00A7a"; abbrev = "OK"; }
             case RATE_LIMITED -> { colorCode = "\u00A7e"; abbrev = "COOLDOWN"; }

@@ -7,6 +7,23 @@ architectury {
     fabric()
 }
 
+// Phase 14 fix (real-world bug): runServer and runClient shared the same "run/"
+// directory by default (Fabric Loom's default when no per-run runDir is set),
+// meaning the dedicated test server and client A's own client silently shared
+// one config/alltranslator/config.json - the dedicated server's per-player chat
+// translation (PerPlayerLanguageResolver) was actually reading/fighting over
+// client A's own local config rather than having its own, independent
+// server-side config. Giving the "server" run its own directory makes local
+// testing correctly mirror a real dedicated server (always a separate machine)
+// having a wholly separate config.json from any client.
+loom {
+    runs {
+        server {
+            runDir "run-server"
+        }
+    }
+}
+
 repositories {
     maven {
         name = 'Terraformers'

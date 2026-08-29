@@ -1,0 +1,14 @@
+[
+  {
+    "uuid": "dec54760-fdf7-30f1-9582-5a34b5b5c5ef",
+    "name": "TestPlayerA",
+    "level": 4,
+    "bypassesPlayerLimit": false
+  },
+  {
+    "uuid": "bc343372-4a88-4685-8e2b-e4d1e2a9542c",
+    "name": "29kiyo",
+    "level": 4,
+    "bypassesPlayerLimit": false
+  }
+]

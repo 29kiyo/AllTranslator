@@ -102,6 +102,9 @@ Architectury(common/fabric/neoforge)構成。ビルドは以下:
 - **Anthropic(Claude)・Geminiプロバイダ**: 実際のAPIキーでの動作確認は未実施です。
 
 
+### ローカルLLM利用時のタイムアウトについて
+`OPENAI_COMPATIBLE`/`OPENAI_COMPATIBLE_LOCAL`のHTTPタイムアウトは既定30秒です。クラウドAPIなら通常十分ですが、ローカルの小型モデル(7B級など)は、長めの文章(ツールチップの説明文や長文チャット)の生成に30秒以上かかることがあり、その場合`HttpTimeoutException`で失敗し、一時的にクールダウン状態(スコアボードでは`[ERROR]`表示)になります。ローカルLLMを使う場合は、API設定の`extraParams`に`"timeoutSeconds": "120"`のように長めの値を明示的に設定することを推奨します。
+
 ### 色付きテキストの翻訳について
 一部のmod(確認済み: Traveler's Backpack)は、色をMinecraft標準のStyleではなく、`§6`や`§4`のような色コードをテキスト自身に直接埋め込む形で表現しています。All Translatorはこの種の行を色の変わり目で分割し、断片ごとに翻訳した上で色コード自体は翻訳APIに一切渡さず機械的に組み戻すことで、色が完全に失われたり無関係な部分まで着色されたりする不具合を防いでいます。
 
