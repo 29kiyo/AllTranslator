@@ -152,6 +152,11 @@ public final class AllTranslatorCore {
         // compat/ftbquests/FtbQuestsCompat.java for why no real hooks exist yet).
         com.kiyo.alltranslator.compat.ftbquests.FtbQuestsCompat.reportStatus();
 
+        // Phase 14: live sidebar scoreboard (per-enabled-API status/in-flight count,
+        // queue depth). Off by default (ConfigModel#scoreboardEnabled) - install()
+        // just wires the lifecycle/tick hooks, it doesn't turn anything on by itself.
+        com.kiyo.alltranslator.server.ScoreboardManager.install();
+
         // Phase 9: /alltranslator (alias /at) commands, ARCHITECTURE.md §13. Registered via
         // Architectury's common CommandRegistrationEvent (verified via javap/sources: fires on
         // both dedicated servers and the integrated/singleplayer server - same registration

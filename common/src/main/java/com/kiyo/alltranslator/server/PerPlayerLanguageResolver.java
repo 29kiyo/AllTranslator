@@ -12,15 +12,25 @@ import net.minecraft.server.level.ServerPlayer;
  * translation lookups) or Phase 5 (client-side chat), which keep using LanguageResolver's
  * client-only resolution as-is.
  *
- * Language priority (revises ARCHITECTURE.md §4's original "client sends a language code via
- * a custom payload" plan - unnecessary, since MC 26.2 vanilla already syncs this automatically
- * for every client, modded or not, via ServerboundClientInformationPacket ->
- * ServerPlayer#clientInformation()#language()):
- *   1. config.forcedTargetLanguage (server admin global override, ConfigManager)
- *   2. per-player languageOverride (PlayerTranslationSettingsManager)
+ * Language priority (Phase 14 revision - see below for why the order changed from the
+ * original Phase 6 design):
+ *   1. per-player languageOverride (PlayerTranslationSettingsManager, set via /alltranslator
+ *      language - an explicit, individually-chosen preference)
+ *   2. config.forcedTargetLanguage (server admin's default for everyone who HASN'T personally
+ *      overridden - ConfigManager)
  *   3. ServerPlayer#clientInformation().language() (vanilla-synced, always present, works for
  *      any client)
  *   4. LanguageResolver.DEFAULT_LANGUAGE ("en_us")
+ *
+ * Phase 14 change (real-world request): originally forcedTargetLanguage outranked the
+ * per-player override entirely, making it impossible for any individual player to opt out of
+ * an admin's server-wide language even via an explicit command - e.g. an admin standardizing
+ * the server on "ja" made it impossible for one English-speaking player to read chat in
+ * English via /alltranslator language en, since resolve() returned "ja" before ever
+ * consulting the per-player override. forcedTargetLanguage now acts as the server's default
+ * for players who haven't personally chosen a language, rather than an unconditional
+ * override - matching how "forced" is used elsewhere in this codebase (a starting point,
+ * not an ceiling).
  *
  * IMPORTANT (confirmed at compile time, not just from sources): ServerPlayer#getLanguage() and
  * its backing `language` field only become public via NeoForge's access transformer, applied
@@ -42,14 +52,14 @@ public final class PerPlayerLanguageResolver {
     }
 
     public String resolve(ServerPlayer player) {
-        String forced = configManager.model().forcedTargetLanguage;
-        if (forced != null && !forced.isBlank()) {
-            return LanguageResolver.normalize(forced);
-        }
-
         String override = playerSettings.get(player.getUUID()).languageOverride();
         if (override != null && !override.isBlank()) {
             return LanguageResolver.normalize(override);
+        }
+
+        String forced = configManager.model().forcedTargetLanguage;
+        if (forced != null && !forced.isBlank()) {
+            return LanguageResolver.normalize(forced);
         }
 
         String vanilla = player.clientInformation().language();

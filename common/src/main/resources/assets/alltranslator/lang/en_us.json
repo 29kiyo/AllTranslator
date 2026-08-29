@@ -46,5 +46,8 @@
   "gui.alltranslator.apilist.next": "Next >",
   "toast.alltranslator.title": "All Translator",
   "toast.alltranslator.api_failure": "%s: %s",
-  "gui.alltranslator.config.max_concurrent_requests": "Max concurrent requests"
+  "gui.alltranslator.config.max_concurrent_requests": "Max concurrent requests",
+  "gui.alltranslator.config.scoreboard": "Show scoreboard",
+  "gui.alltranslator.config.scoreboard_interval": "Scoreboard update interval (sec)",
+  "key.alltranslator.refresh": "Refresh Translation APIs"
 }

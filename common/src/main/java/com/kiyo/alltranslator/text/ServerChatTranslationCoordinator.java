@@ -34,6 +34,21 @@ import java.util.concurrent.ConcurrentHashMap;
  *  - The sender never has their own message translated (translating what you just typed, in
  *    your own language, back to your own language is pointless) - detected via
  *    PlayerChatMessage#sender(), no need to separately track the ServerPlayer sender instance.
+ *  - Phase 14 EXCEPTION (real-world bug found in singleplayer): the sender-skip rule above
+ *    combines badly with ChatTranslationCoordinator's own Phase 13 self-guard (a client whose
+ *    LOCAL config.json has serverSideChatTranslationEnabled=true skips its own Phase 5
+ *    client-side translation, trusting the server to handle it) when sender and recipient are
+ *    the SAME single player, as they always are in singleplayer: the client skips translating
+ *    because "the server will do it," and the server skips translating because "don't
+ *    translate the sender's own message" - so nothing ever translates the player's own chat
+ *    for themselves. Since the ONLY way to read your own translated chat at all is via this
+ *    server-side path when you're also the only recipient, the sender-skip rule is relaxed
+ *    specifically when the server currently has exactly one online player: that lone player IS
+ *    both the sender and the only intended recipient, so translating their own message for
+ *    their own reading is not the "pointless self-translation" case the rule exists to avoid -
+ *    it is the only way they ever see a translation at all. Any second player joining
+ *    immediately restores the normal (server-side) sender-skip behavior for ordinary
+ *    multiplayer, since "am I the only online player" is re-evaluated per message.
  *  - Recipients with server-side translation OFF (server-wide switch off, or their own opt-out
  *    via PlayerTranslationSettingsManager) are sent the untouched OutgoingChatMessage
  *    immediately, exactly as vanilla would - completely unaffected by this feature being
@@ -86,7 +101,7 @@ public final class ServerChatTranslationCoordinator {
      * @param chatType  the same ChatType.Bound vanilla used for this broadcast.
      */
     public void handleOutgoing(ServerPlayer recipient, PlayerChatMessage message, boolean filtered, ChatType.Bound chatType) {
-        if (recipient.getUUID().equals(message.sender())) {
+        if (recipient.getUUID().equals(message.sender()) && !isSoleOnlinePlayer(recipient)) {
             recipient.sendChatMessage(new OutgoingChatMessage.Player(message), filtered, chatType);
             return;
         }
@@ -150,5 +165,16 @@ public final class ServerChatTranslationCoordinator {
                 recipient.sendChatMessage(new OutgoingChatMessage.Player(outgoing), filtered, chatType);
             });
         });
+    }
+
+    /**
+     * Phase 14: true if `player` is currently the only entry in the server's online
+     * player list - see the sender-skip exception in this class's Javadoc for why
+     * this matters. Cheap (a size() call on the already-maintained online-player
+     * list, no iteration/allocation beyond what getPlayers() itself does).
+     */
+    private static boolean isSoleOnlinePlayer(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        return server != null && server.getPlayerList().getPlayers().size() == 1;
     }
 }

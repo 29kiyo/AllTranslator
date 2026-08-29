@@ -150,4 +150,65 @@ public final class LanguageResolver {
         String trimmed = languageCode.trim().toLowerCase(Locale.ROOT).replace('-', '_');
         return COMMON_ALIASES.getOrDefault(trimmed, trimmed);
     }
+
+    /**
+     * Phase 14 (real-world bug: prompt-based LLM providers - OpenAiCompatibleProvider,
+     * AnthropicProvider, GeminiProvider - were told to translate into "the language
+     * with code 'ja_jp'", and a local 7B model observably failed to reliably follow
+     * this: real multiplayer testing produced a Spanish reply ("amigo") for a
+     * ja_jp-targeted translation, and other requests silently stayed in English
+     * unchanged. A raw Minecraft locale code is not natural language and small
+     * models evidently don't always map it to the intended language reliably.
+     * DeepL/GoogleCloudV2/GoogleWebFree are unaffected - those are dedicated
+     * translation APIs taking a proper language-code PARAMETER, not a natural-
+     * language instruction, so this table is only consulted by the three
+     * prompt-based providers above.
+     *
+     * Falls back to returning the code itself, unchanged, for anything not in this
+     * (intentionally non-exhaustive - matches COMMON_ALIASES's own scope) table, so
+     * an unrecognized/less-common target language still gets SOME instruction
+     * rather than none.
+     */
+    private static final Map<String, String> READABLE_NAMES = Map.ofEntries(
+            Map.entry("en_us", "English"),
+            Map.entry("en_gb", "English"),
+            Map.entry("ja_jp", "Japanese"),
+            Map.entry("ko_kr", "Korean"),
+            Map.entry("zh_cn", "Simplified Chinese"),
+            Map.entry("zh_tw", "Traditional Chinese"),
+            Map.entry("zh_hk", "Traditional Chinese"),
+            Map.entry("fr_fr", "French"),
+            Map.entry("de_de", "German"),
+            Map.entry("es_es", "Spanish"),
+            Map.entry("es_mx", "Spanish"),
+            Map.entry("pt_br", "Portuguese"),
+            Map.entry("pt_pt", "Portuguese"),
+            Map.entry("ru_ru", "Russian"),
+            Map.entry("it_it", "Italian"),
+            Map.entry("nl_nl", "Dutch"),
+            Map.entry("pl_pl", "Polish"),
+            Map.entry("sv_se", "Swedish"),
+            Map.entry("fi_fi", "Finnish"),
+            Map.entry("da_dk", "Danish"),
+            Map.entry("no_no", "Norwegian"),
+            Map.entry("cs_cz", "Czech"),
+            Map.entry("hu_hu", "Hungarian"),
+            Map.entry("ro_ro", "Romanian"),
+            Map.entry("bg_bg", "Bulgarian"),
+            Map.entry("el_gr", "Greek"),
+            Map.entry("he_il", "Hebrew"),
+            Map.entry("hi_in", "Hindi"),
+            Map.entry("fa_ir", "Persian"),
+            Map.entry("vi_vn", "Vietnamese"),
+            Map.entry("th_th", "Thai"),
+            Map.entry("tr_tr", "Turkish"),
+            Map.entry("id_id", "Indonesian"),
+            Map.entry("ar_sa", "Arabic")
+    );
+
+    /** @param normalizedCode already-normalized (normalize()'d) target language code. */
+    public static String toReadableName(String normalizedCode) {
+        if (normalizedCode == null) return null;
+        return READABLE_NAMES.getOrDefault(normalizedCode, normalizedCode);
+    }
 }

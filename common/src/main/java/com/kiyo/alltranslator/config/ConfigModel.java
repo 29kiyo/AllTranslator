@@ -22,6 +22,18 @@ public final class ConfigModel {
      * matches the original Phase 13 hardcoded value.
      */
     public int maxConcurrentHttpRequests = 3;
+    /**
+     * Phase 14: shows a live sidebar scoreboard (in-flight request count, status,
+     * queue depth per enabled API) - server-wide, not per-player (a Minecraft
+     * sidebar objective is a single shared Scoreboard, not per-player state).
+     * Toggled via /alltranslator scoreboard on|off (OP) on a dedicated/remote
+     * server, or this same field via the config screen's toggle button on
+     * singleplayer (the integrated server reads the same ConfigModel instance).
+     * Off by default - CLAUDE.md §24 (don't turn on new UI unasked).
+     */
+    public boolean scoreboardEnabled = false;
+    /** Phase 14: how often (in seconds) the scoreboard's live counts refresh. */
+    public int scoreboardUpdateIntervalSeconds = 5;
 
     /**
      * Every configured API, including the keyless GOOGLE_WEB_FREE provider

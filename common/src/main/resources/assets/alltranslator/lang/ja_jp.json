@@ -46,5 +46,8 @@
   "gui.alltranslator.apilist.next": "次へ >",
   "toast.alltranslator.title": "All Translator",
   "toast.alltranslator.api_failure": "%s: %s",
-  "gui.alltranslator.config.max_concurrent_requests": "同時リクエスト数上限"
+  "gui.alltranslator.config.max_concurrent_requests": "同時リクエスト数上限",
+  "gui.alltranslator.config.scoreboard": "スコアボード表示",
+  "gui.alltranslator.config.scoreboard_interval": "スコアボード更新間隔(秒)",
+  "key.alltranslator.refresh": "翻訳APIをリフレッシュ"
 }

@@ -59,6 +59,22 @@ public final class ApiManager {
     }
 
     /**
+     * Phase 14 (scoreboard): every ENABLED config regardless of current
+     * ApiState/usability, priority-ascending - unlike getOrderedCandidates(),
+     * which intentionally hides temporarily-unusable APIs from translation
+     * attempts. The scoreboard wants to actively SHOW an API's cooldown/error
+     * status, not hide the row when it's most relevant.
+     */
+    public List<TranslationApiConfig> getEnabledConfigs() {
+        List<TranslationApiConfig> result = new ArrayList<>();
+        for (TranslationApiConfig cfg : configs.values()) {
+            if (cfg.enabled()) result.add(cfg);
+        }
+        result.sort(Comparator.comparingInt(TranslationApiConfig::priority));
+        return result;
+    }
+
+    /**
      * Phase 14 (/alltranslator refresh): resets cooldown/rate-limit/temp-
      * unavailable state back to AVAILABLE for every API that ISN'T
      * DISABLED_PERMANENT (an invalid key or genuinely broken config still needs

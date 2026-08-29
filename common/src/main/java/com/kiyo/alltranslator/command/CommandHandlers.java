@@ -101,7 +101,11 @@ public final class CommandHandlers {
                                                 StringArgumentType.getString(ctx, "code"))))))
                 .then(literal("refresh")
                         .requires(CommandHandlers::canRefresh)
-                        .executes(ctx -> refresh(ctx.getSource())));
+                        .executes(ctx -> refresh(ctx.getSource())))
+                .then(literal("scoreboard")
+                        .requires(permission(Commands.LEVEL_GAMEMASTERS))
+                        .then(literal("on").executes(ctx -> setScoreboard(ctx.getSource(), true)))
+                        .then(literal("off").executes(ctx -> setScoreboard(ctx.getSource(), false))));
     }
 
     /**
@@ -216,6 +220,22 @@ public final class CommandHandlers {
         source.sendSuccess(() -> Component.literal("  Language override: "
                 + (raw.languageOverride() == null ? "(none, uses client-reported language)" : raw.languageOverride())), false);
         source.sendSuccess(() -> Component.literal("  Resolved target language: " + resolver.resolve(target)), false);
+        return 1;
+    }
+
+    /**
+     * Phase 14: backing executor for /alltranslator scoreboard on|off. Server-
+     * wide, not per-player (see ScoreboardManager's class Javadoc for why) -
+     * this is the OP/multiplayer front-end; singleplayer also has a config-
+     * screen toggle button that flips the same ConfigModel field.
+     */
+    private static int setScoreboard(CommandSourceStack source, boolean enabled) {
+        ConfigManager configManager = AllTranslatorCore.configManager();
+        configManager.model().scoreboardEnabled = enabled;
+        configManager.save();
+        com.kiyo.alltranslator.server.ScoreboardManager.refreshEnabledState();
+        source.sendSuccess(() -> Component.literal("[All Translator] Scoreboard: "
+                + (enabled ? "ON" : "OFF") + "."), true);
         return 1;
     }
 

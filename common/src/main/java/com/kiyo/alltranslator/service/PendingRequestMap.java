@@ -38,4 +38,9 @@ public final class PendingRequestMap {
     public void clear() {
         pending.clear();
     }
+
+    /** Phase 14 (scoreboard): number of distinct requests currently awaiting resolution. */
+    public int size() {
+        return pending.size();
+    }
 }

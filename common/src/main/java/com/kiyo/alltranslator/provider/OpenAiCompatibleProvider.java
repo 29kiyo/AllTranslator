@@ -9,6 +9,7 @@ import com.kiyo.alltranslator.api.TranslationException;
 import com.kiyo.alltranslator.api.TranslationProvider;
 import com.kiyo.alltranslator.api.TranslationRequest;
 import com.kiyo.alltranslator.api.TranslationResult;
+import com.kiyo.alltranslator.lang.LanguageResolver;
 import com.kiyo.alltranslator.service.InFlightCallRegistry;
 import com.kiyo.alltranslator.service.TranslationApiConfig;
 
@@ -82,9 +83,10 @@ public final class OpenAiCompatibleProvider implements TranslationProvider {
 
         String model = config.extraParams().getOrDefault("model", "gpt-4o-mini");
         String systemPrompt = config.extraParams().getOrDefault("systemPrompt",
-                "You are a translation engine. Translate the user's message into the language with code '"
-                        + request.targetLang() + "'. Reply with ONLY the translated text, no quotes, no explanation, "
-                        + "and preserve any placeholder tokens exactly as-is.");
+                "You are a translation engine. Translate the user's message into "
+                        + LanguageResolver.toReadableName(request.targetLang())
+                        + " (locale code '" + request.targetLang() + "'). Reply with ONLY the translated text, "
+                        + "no quotes, no explanation, and preserve any placeholder tokens exactly as-is.");
         int timeoutSeconds = readTimeoutSeconds(config);
 
         JsonObject body = new JsonObject();

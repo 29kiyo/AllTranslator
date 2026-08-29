@@ -9,6 +9,7 @@ import com.kiyo.alltranslator.api.TranslationException;
 import com.kiyo.alltranslator.api.TranslationProvider;
 import com.kiyo.alltranslator.api.TranslationRequest;
 import com.kiyo.alltranslator.api.TranslationResult;
+import com.kiyo.alltranslator.lang.LanguageResolver;
 import com.kiyo.alltranslator.service.InFlightCallRegistry;
 import com.kiyo.alltranslator.service.TranslationApiConfig;
 
@@ -72,9 +73,11 @@ public final class GeminiProvider implements TranslationProvider {
             return failed;
         }
 
-        String instruction = "Translate the following text into the language with code '"
-                + request.targetLang() + "'. Reply with ONLY the translated text, no quotes, no explanation, "
-                + "and preserve any placeholder tokens exactly as-is.\n\n" + request.sourceText();
+        String instruction = "Translate the following text into "
+                + LanguageResolver.toReadableName(request.targetLang())
+                + " (locale code '" + request.targetLang() + "'). Reply with ONLY the translated text, "
+                + "no quotes, no explanation, and preserve any placeholder tokens exactly as-is.\n\n"
+                + request.sourceText();
         int timeoutSeconds = readTimeoutSeconds(config);
 
         JsonObject part = new JsonObject();

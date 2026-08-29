@@ -34,6 +34,7 @@ import net.minecraft.resources.Identifier;
 public final class AllTranslatorKeyBindings {
 
     private static KeyMapping openConfigKey;
+    private static KeyMapping refreshKey;
     private static boolean tickHandlerRegistered = false;
 
     private AllTranslatorKeyBindings() {
@@ -58,14 +59,31 @@ public final class AllTranslatorKeyBindings {
         KeyMapping.Category category = KeyMapping.Category.register(
                 Identifier.fromNamespaceAndPath(AllTranslator.MOD_ID, "general"));
 
+        // Phase 14: default changed from L to M per user request. Key name
+        // ("key.alltranslator.open_config") deliberately left unchanged - it's
+        // just a translation-key string identifying which binding this is in
+        // the Controls screen and options.txt, not tied to the physical key
+        // itself; renaming it would needlessly reset anyone's existing custom
+        // rebind on upgrade.
         openConfigKey = new KeyMapping(
                 "key.alltranslator.open_config",
                 InputConstants.Type.KEYSYM,
-                InputConstants.KEY_L,
+                InputConstants.KEY_M,
                 category);
         KeyMappingRegistry.register(openConfigKey);
 
-        AllTranslator.LOGGER.info("{} keybinding registered (default: L)", AllTranslator.MOD_NAME);
+        // Phase 14: /alltranslator refresh, one-key access to the same command
+        // (ARCHITECTURE.md/CommandHandlers §13) - the only /alltranslator
+        // subcommand a player would plausibly want mid-session rather than via
+        // the config screen or chat.
+        refreshKey = new KeyMapping(
+                "key.alltranslator.refresh",
+                InputConstants.Type.KEYSYM,
+                InputConstants.KEY_K,
+                category);
+        KeyMappingRegistry.register(refreshKey);
+
+        AllTranslator.LOGGER.info("{} keybindings registered (open config: M, refresh: K)", AllTranslator.MOD_NAME);
     }
 
     /**
@@ -79,10 +97,23 @@ public final class AllTranslatorKeyBindings {
         tickHandlerRegistered = true;
 
         ClientTickEvent.CLIENT_POST.register(client -> {
-            if (openConfigKey == null) return;
-            while (openConfigKey.consumeClick()) {
-                if (client.gui.screen() == null) {
-                    client.gui.setScreen(new AllTranslatorConfigScreen(null));
+            if (openConfigKey != null) {
+                while (openConfigKey.consumeClick()) {
+                    if (client.gui.screen() == null) {
+                        client.gui.setScreen(new AllTranslatorConfigScreen(null));
+                    }
+                }
+            }
+            if (refreshKey != null) {
+                while (refreshKey.consumeClick()) {
+                    // Phase 14: only makes sense while actually connected to a
+                    // server (singleplayer's integrated server counts - getConnection()
+                    // is non-null there too). Silently does nothing otherwise
+                    // (e.g. main menu), same as chat commands typed while
+                    // disconnected would be impossible to type in the first place.
+                    if (client.getConnection() != null) {
+                        client.getConnection().sendCommand("alltranslator refresh");
+                    }
                 }
             }
         });

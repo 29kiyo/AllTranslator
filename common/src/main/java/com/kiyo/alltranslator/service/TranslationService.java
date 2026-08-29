@@ -11,11 +11,13 @@ import com.kiyo.alltranslator.config.CredentialStore;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import com.kiyo.alltranslator.AllTranslator;
 
@@ -64,6 +66,27 @@ public final class TranslationService {
      * derived stage alone would NOT have worked.
      */
     private final InFlightCallRegistry inFlightCallRegistry = new InFlightCallRegistry();
+
+    /**
+     * Phase 14 (scoreboard): tracks how many attempts are CURRENTLY assigned to
+     * each API config (from just before an attempt starts through its
+     * whenComplete, regardless of success/failure) - purely observational,
+     * touches no translation logic. Only ever grows entries lazily via
+     * computeIfAbsent(); a config that's never been attempted simply reads as 0
+     * via inFlightCountFor() below rather than needing eager initialization.
+     */
+    private final java.util.concurrent.ConcurrentHashMap<UUID, AtomicInteger> inFlightPerApi = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Phase 14 (scoreboard): current in-flight attempt count for one API config. */
+    public int inFlightCountFor(UUID configId) {
+        AtomicInteger counter = inFlightPerApi.get(configId);
+        return counter == null ? 0 : counter.get();
+    }
+
+    /** Phase 14 (scoreboard): number of distinct requests currently awaiting resolution across all APIs. */
+    public int pendingQueueSize() {
+        return pendingRequests.size();
+    }
 
     /**
      * Phase 13: optional failure listener (API display name, failure type as a
@@ -174,6 +197,10 @@ public final class TranslationService {
         }
 
         String rawKey = credentialStore.getRawKey(candidate.credentialId());
+        AtomicInteger inFlightCounter = inFlightPerApi.computeIfAbsent(candidate.id(), k -> new AtomicInteger());
+        int afterIncrement = inFlightCounter.incrementAndGet();
+        AllTranslator.LOGGER.info("[AT-DEBUG] inFlight++ for " + candidate.displayName()
+                + " (id=" + candidate.id() + ") -> " + afterIncrement);
 
         // Phase 13 fix: acquire a real in-flight-request permit on asyncExecutor
         // (blocking is fine here - this runs on the dedicated 2-thread translation
@@ -191,6 +218,9 @@ public final class TranslationService {
                 .thenCompose(v -> provider.translate(request, candidate, rawKey, inFlightCallRegistry))
                 .whenComplete((result, error) -> {
                     inFlightHttpRequests.release();
+                    int afterDecrement = inFlightCounter.decrementAndGet();
+                    AllTranslator.LOGGER.info("[AT-DEBUG] inFlight-- for " + candidate.displayName()
+                            + " (id=" + candidate.id() + ") -> " + afterDecrement);
                     if (tookReservation && state != null) {
                         state.releaseProbe();
                     }

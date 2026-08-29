@@ -49,6 +49,8 @@ public final class AllTranslatorConfigScreen extends Screen {
     private int labelTtlY;
     private int labelShowOriginalNameY;
     private int labelMaxConcurrentY;
+    private int labelScoreboardY;
+    private int labelScoreboardIntervalY;
 
     private int labelGoogleFreeY;
     private int labelShowOriginalY;
@@ -66,6 +68,8 @@ public final class AllTranslatorConfigScreen extends Screen {
     private EditBox ttlBox;
     private CycleButton<Boolean> showOriginalNameButton;
     private EditBox maxConcurrentBox;
+    private CycleButton<Boolean> scoreboardEnabledButton;
+    private EditBox scoreboardIntervalBox;
 
     private CycleButton<Boolean> googleFreeButton;
     private CycleButton<Boolean> showOriginalTextButton;
@@ -178,6 +182,19 @@ public final class AllTranslatorConfigScreen extends Screen {
         this.addRenderableWidget(otherScreensButton);
         y += ROW_HEIGHT;
 
+        labelScoreboardY = y;
+        scoreboardEnabledButton = CycleButton.onOffBuilder(model.scoreboardEnabled)
+                .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.scoreboard"));
+        this.addRenderableWidget(scoreboardEnabledButton);
+        y += ROW_HEIGHT;
+
+        labelScoreboardIntervalY = y;
+        scoreboardIntervalBox = new EditBox(this.font, rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.scoreboard_interval"));
+        scoreboardIntervalBox.setMaxLength(3);
+        scoreboardIntervalBox.setValue(String.valueOf(model.scoreboardUpdateIntervalSeconds));
+        this.addRenderableWidget(scoreboardIntervalBox);
+        y += ROW_HEIGHT;
+
         int rightColumnBottom = y;
 
         int bottomOfColumns = Math.max(leftColumnBottom, rightColumnBottom);
@@ -227,6 +244,11 @@ public final class AllTranslatorConfigScreen extends Screen {
             model.maxConcurrentHttpRequests = Integer.parseInt(maxConcurrentBox.getValue().trim());
         } catch (NumberFormatException ignored) {
         }
+        model.scoreboardEnabled = scoreboardEnabledButton.getValue();
+        try {
+            model.scoreboardUpdateIntervalSeconds = Integer.parseInt(scoreboardIntervalBox.getValue().trim());
+        } catch (NumberFormatException ignored) {
+        }
 
         boolean wantGoogleOn = googleFreeButton.getValue();
         Optional<TranslationApiConfig> existing = findGoogleFree();
@@ -251,6 +273,7 @@ public final class AllTranslatorConfigScreen extends Screen {
         if (AllTranslatorCore.translationService() != null) {
             AllTranslatorCore.translationService().setMaxConcurrentHttpRequests(model.maxConcurrentHttpRequests);
         }
+        com.kiyo.alltranslator.server.ScoreboardManager.refreshEnabledState();
     }
 
     @Override
@@ -277,6 +300,8 @@ public final class AllTranslatorConfigScreen extends Screen {
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.api_error_toast"), rightX, labelToastY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.api_error_toast_sound"), rightX, labelToastSoundY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.translate_other_screens"), rightX, labelOtherScreensY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.scoreboard"), rightX, labelScoreboardY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.scoreboard_interval"), rightX, labelScoreboardIntervalY, LABEL_COLOR);
 
         int apiCount = model.apis.size();
         drawContext.centeredText(this.font, Component.translatable("gui.alltranslator.config.api_count", apiCount), this.width / 2, apiCountLabelY, LABEL_COLOR);
