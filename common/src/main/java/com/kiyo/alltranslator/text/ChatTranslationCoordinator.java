@@ -185,6 +185,7 @@ public final class ChatTranslationCoordinator {
     public void onPlayerChatReceived(PlayerChatMessage playerChatMessage, ChatType.Bound boundChatType) {
         if (playerChatMessage == null || boundChatType == null) return;
         if (!configManager.model().translationEnabled) return;
+        if (!configManager.model().translateChat) return;
         // Phase 13 (real-world multiplayer testing, DEVELOPMENT_STATUS.md): confirmed the
         // double-translation scenario ARCHITECTURE.md §20.2 already flagged as a known
         // limitation actually happens (observed a recipient's already-server-translated text

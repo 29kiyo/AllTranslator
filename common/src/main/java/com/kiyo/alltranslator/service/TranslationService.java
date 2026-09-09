@@ -132,7 +132,22 @@ public final class TranslationService {
     /**
      * @param persistable false for chat (memory-only per ARCHITECTURE.md §8.1); true for everything else.
      */
-    public CompletableFuture<TranslationResult> translate(TranslationRequest request, boolean persistable) {
+public CompletableFuture<TranslationResult> translate(TranslationRequest request, boolean persistable) {
+        return translate(request, persistable, null);
+    }
+
+    /**
+     * Phase 14 (SERVER_PROXY): like translate(request, persistable), but skips any
+     * configured candidate whose provider type equals excludeProvider (pass null
+     * for no exclusion - that's what the two-arg overload above does). Used by
+     * AllTranslatorNetworking's server-side SERVER_PROXY request handler so a
+     * singleplayer integrated server (where Platform.getEnvironment() is CLIENT -
+     * see ProviderFactory - and ApiManager/config.apis are shared with the client
+     * half of the same process) never routes a proxy request back through
+     * ProviderType.SERVER_PROXY itself.
+     */
+    public CompletableFuture<TranslationResult> translate(TranslationRequest request, boolean persistable,
+                                                            com.kiyo.alltranslator.api.ProviderType excludeProvider) {
         if (request.sourceText().isBlank()) {
             return CompletableFuture.completedFuture(TranslationResult.original(request.sourceText(), request.targetLang()));
         }
@@ -159,6 +174,11 @@ public final class TranslationService {
         if (existing != null) return existing;
 
         List<TranslationApiConfig> candidates = apiManager.getOrderedCandidates();
+        if (excludeProvider != null) {
+            candidates = candidates.stream()
+                    .filter(c -> c.provider() != excludeProvider)
+                    .collect(java.util.stream.Collectors.toList());
+        }
         attemptNext(request, candidates.iterator(), cacheKey, persistable, newFuture);
         return newFuture;
     }
@@ -277,6 +297,42 @@ public final class TranslationService {
                         attemptNext(request, candidateIterator, cacheKey, persistable, resultFuture);
                     }
                 });
+    }
+
+    /**
+     * Real-world follow-up fix (Toast/Advancement translation task session): synchronous,
+     * non-blocking cache-only lookup - checks ONLY the already-populated memory/persistent
+     * cache tiers (same cacheKey scheme as translate() above) and returns immediately,
+     * NEVER calling any provider/API and NEVER waiting on an in-flight request. Returns
+     * null if no cached result exists yet (caller decides what to do - e.g. show the
+     * original text this one time while a background translate() call warms the cache for
+     * next time).
+     *
+     * Added for TitleTranslationCoordinator (a /title command's title/subtitle/actionbar
+     * Component must be fully resolved synchronously before ServerGamePacketListenerImpl
+     * sends it - Brigadier command execution cannot await a CompletableFuture, and CLAUDE.md
+     * §7 forbids blocking the main/server thread to wait for one). No other caller in this
+     * project currently needs a synchronous peek; every other translation call site
+     * (chat/tellraw/advancement announcements/item/entity/tooltip) can wait for the async
+     * result and patch/deliver it later, which remains the strongly preferred pattern -
+     * this method exists only for the one case where that isn't possible at all.
+     */
+    public TranslationResult peekCache(TranslationRequest request, boolean persistable) {
+        String cacheKey = CacheKeyUtil.hash(request.sourceText(), request.sourceLang(), request.targetLang(), CACHE_VERSION);
+        TranslationResult memoryHit = cacheManager.getMemory(cacheKey);
+        if (memoryHit != null) {
+            return memoryHit;
+        }
+        if (persistable) {
+            String persisted = cacheManager.getPersistent(request.targetLang(), cacheKey);
+            if (persisted != null) {
+                TranslationResult result = new TranslationResult(persisted, request.sourceText(), request.targetLang(),
+                        null, true, persisted.equals(request.sourceText()));
+                cacheManager.putMemory(cacheKey, result);
+                return result;
+            }
+        }
+        return null;
     }
 
     /**

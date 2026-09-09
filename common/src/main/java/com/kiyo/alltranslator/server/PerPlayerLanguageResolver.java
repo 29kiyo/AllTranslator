@@ -57,6 +57,19 @@ public final class PerPlayerLanguageResolver {
             return LanguageResolver.normalize(override);
         }
 
+        // Phase 14 (M-key auto-sync, user request): a value the client itself
+        // pushed via its own M-key ConfigModel#forcedTargetLanguage - see
+        // PlayerTranslationSettings#autoSyncedLanguage's Javadoc. Deliberately
+        // ranked BELOW the explicit /alltranslator language override above (an
+        // individually-typed command always wins) but ABOVE the server admin's
+        // own forcedTargetLanguage default below - this is still a personal,
+        // player-specific signal, just one the player set via a different (more
+        // familiar) screen instead of typing a command.
+        String autoSynced = playerSettings.get(player.getUUID()).autoSyncedLanguage();
+        if (autoSynced != null && !autoSynced.isBlank()) {
+            return LanguageResolver.normalize(autoSynced);
+        }
+
         String forced = configManager.model().forcedTargetLanguage;
         if (forced != null && !forced.isBlank()) {
             return LanguageResolver.normalize(forced);
@@ -75,6 +88,25 @@ public final class PerPlayerLanguageResolver {
         ConfigModel model = configManager.model();
         if (!model.translationEnabled) return false; // mod-wide master switch (shared with Phase 4/5)
         if (!model.serverSideChatTranslationEnabled) return false; // server-side chat mode opt-in (§9)
+        Boolean perPlayer = playerSettings.get(player.getUUID()).enabled();
+        return perPlayer == null || perPlayer;
+    }
+
+    /**
+     * Phase 14 (item 7, tellraw translation): mirrors isEnabledFor() above but
+     * gated on ConfigModel#translateSystemMessages instead of
+     * #serverSideChatTranslationEnabled - tellraw translation is deliberately
+     * independent of the optional server-side CHAT mode (a server may want one
+     * on without the other). Shares the same per-player opt-out flag
+     * (PlayerTranslationSettingsManager#enabled()) rather than introducing a
+     * separate one, on the reasoning that a player who has opted OUT of
+     * server-side translation for themselves most likely wants that to apply
+     * uniformly, not per-feature.
+     */
+    public boolean isEnabledForSystemMessages(ServerPlayer player) {
+        ConfigModel model = configManager.model();
+        if (!model.translationEnabled) return false;
+        if (!model.translateSystemMessages) return false;
         Boolean perPlayer = playerSettings.get(player.getUUID()).enabled();
         return perPlayer == null || perPlayer;
     }

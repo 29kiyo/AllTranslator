@@ -101,6 +101,10 @@ public final class ServerChatTranslationCoordinator {
      * @param chatType  the same ChatType.Bound vanilla used for this broadcast.
      */
     public void handleOutgoing(ServerPlayer recipient, PlayerChatMessage message, boolean filtered, ChatType.Bound chatType) {
+        if (!configManager.model().translateChat) {
+            recipient.sendChatMessage(new OutgoingChatMessage.Player(message), filtered, chatType);
+            return;
+        }
         if (recipient.getUUID().equals(message.sender()) && !isSoleOnlinePlayer(recipient)) {
             recipient.sendChatMessage(new OutgoingChatMessage.Player(message), filtered, chatType);
             return;

@@ -75,6 +75,87 @@ public final class ConfigModel {
      */
     public boolean translateOtherModScreens = false;
 
+    /**
+     * Phase 14: per-category translation ON/OFF (PHASE_INSTRUCTIONS.md Phase 14 item 1).
+     * All default true (existing behavior unchanged for anyone who never opens the new
+     * screen). Checked at each hook site IN ADDITION TO (not instead of) the existing
+     * global translationEnabled switch, which TranslatableTextInterceptor#intercept()
+     * itself still enforces as the master switch. translateOtherModScreens above is the
+     * pre-existing Phase 13 switch for other mods' Screen widgets; its UI now lives
+     * alongside these on TranslationCategoriesScreen instead of the main config screen,
+     * but its field name/JSON key is unchanged for config.json backward compatibility.
+     */
+    public boolean translateItemNames = true;
+    public boolean translateItemTooltips = true;
+    public boolean translateEntityNames = true;
+    public boolean translateChat = true;
+
+    /**
+     * Phase 14 (item 7, tellraw translation, Option A - see
+     * TellrawTranslationCoordinator's class Javadoc for the scope decision).
+     * Default ON. Independent of serverSideChatTranslationEnabled - this only
+     * gates /tellraw output specifically, never regular chat or command
+     * feedback/broadcasts (deliberately NOT a general
+     * ServerPlayer#sendSystemMessage hook - see that class's Javadoc for why).
+     */
+    public boolean translateSystemMessages = true;
+
+    /**
+     * Real-world follow-up fix (Toast/Advancement translation task session, user
+     * request): unified toggle for /tell, /msg, /w (all the same command), /teammsg
+     * (/tm), and /title (title/subtitle/actionbar) - grouped together per user decision
+     * since they are all "commands that let a player/admin freely type arbitrary text
+     * with no vanilla translation of their own", as opposed to /tellraw (its own
+     * existing translateSystemMessages toggle, kept separate/unrenamed for config.json
+     * backward compatibility) and ordinary chat (translateChat). Default ON.
+     */
+    public boolean translatePrivateMessagesAndTitles = true;
+
+    /**
+     * Phase 14 (Toast/Advancement translation task): translates the title line of the
+     * vanilla "advancement made"/"challenge complete" toast notification
+     * (AdvancementToastMixin, @Redirect on AdvancementToast#extractRenderState's single
+     * DisplayInfo#getTitle() call - see that Mixin's Javadoc for why only the toast, not
+     * the advancement tree/progress screen, is in scope). Default ON, independent of the
+     * other category toggles above (this is its own distinct, narrowly-scoped hook, not
+     * part of translateEntityNames/translateChat/etc).
+     */
+    public boolean translateAdvancementToasts = true;
+
+    /**
+     * Phase 14 (Toast/Advancement translation task, follow-up): the "New Recipes
+     * Unlocked!" toast title/description (RecipeToastMixin, @Redirect on RecipeToast's
+     * two static Component fields TITLE_TEXT/DESCRIPTION_TEXT - both vanilla-keyed
+     * translatable strings, so existing-translation lookup (ARCHITECTURE.md §3) always
+     * wins for vanilla and any mod that already ships that language). Separate flag
+     * from translateAdvancementToasts since it is a structurally distinct Mixin/toast
+     * class, even though both are "toast notifications" in spirit. Default ON.
+     */
+    public boolean translateRecipeToasts = true;
+
     /** Phase 13: append " (original name)" after translated item names/tooltip first lines. Off by default. */
     public boolean showOriginalNameOnItems = false;
+
+    /**
+     * Phase 14 (SERVER_PROXY, ARCHITECTURE.md §12): server-admin opt-in switch.
+     * When true, this server will translate incoming ServerProxyPayloads.Request
+     * packets using its OWN TranslationService/credentials and return the result
+     * to the requesting client. Off by default. Currently toggled only via
+     * /alltranslator serverproxy on|off (OP) - no config-screen button yet
+     * (AllTranslatorConfigScreen.java was not inspected this session; adding a
+     * UI toggle is left for a follow-up pass, same reasoning as scoreboardEnabled
+     * originally being command-only before its screen button was added).
+     */
+    public boolean serverProxyTranslationEnabled = false;
+
+    /**
+     * Phase 14 (SERVER_PROXY): client-side timeout for a single proxy round-trip
+     * (C2S request -> server translates -> S2C response). Deliberately finite -
+     * see ServerProxyProvider's Javadoc for why an unbounded wait here would risk
+     * the same class of "future never completes" problem TranslatableTextInterceptor's
+     * STUCK_TRACKING diagnostic was investigating (unresolved, tracked separately;
+     * see DEVELOPMENT_STATUS.md). No config-screen field yet - edit config.json
+     * directly to change it, same as the per-API "timeoutSeconds" extraParam.
+     */
+    public int serverProxyTimeoutSeconds = 60;
 }

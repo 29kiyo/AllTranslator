@@ -6,10 +6,17 @@
   "client": [
     "ItemStackMixin",
     "EntityMixin",
-    "ChatComponentAccessor"
+    "ChatComponentAccessor",
+    "AdvancementToastMixin",
+    "RecipeToastMixin"
   ],
   "mixins": [
-    "PlayerListMixin"
+    "PlayerListMixin",
+    "TellRawCommandMixin",
+    "AdvancementBroadcastMixin",
+    "TitleCommandMixin",
+    "MsgCommandMixin",
+    "TeamMsgCommandMixin"
   ],
   "injectors": {
     "defaultRequire": 1

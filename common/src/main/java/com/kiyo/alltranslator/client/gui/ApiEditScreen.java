@@ -122,6 +122,7 @@ public final class ApiEditScreen extends Screen {
         return switch (type) {
             case OPENAI_COMPATIBLE -> Component.translatable("gui.alltranslator.apiedit.provider_chatgpt");
             case OPENAI_COMPATIBLE_LOCAL -> Component.translatable("gui.alltranslator.apiedit.provider_local");
+            case SERVER_PROXY -> Component.translatable("gui.alltranslator.apiedit.provider_server_proxy");
             default -> Component.literal(type.name());
         };
     }
@@ -139,14 +140,17 @@ public final class ApiEditScreen extends Screen {
      *   GEMINI                  - key required, no model field (baked into endpoint URL)
      */
     private static boolean requiresApiKey(ProviderType type) {
-        return type != ProviderType.GOOGLE_WEB_FREE && type != ProviderType.OPENAI_COMPATIBLE_LOCAL;
+        return type != ProviderType.GOOGLE_WEB_FREE && type != ProviderType.OPENAI_COMPATIBLE_LOCAL
+                && type != ProviderType.SERVER_PROXY;
     }
 
     private static boolean allowsApiKey(ProviderType type) {
         // OPENAI_COMPATIBLE_LOCAL allows an OPTIONAL key (some local servers do check
         // one) even though it isn't required - only GOOGLE_WEB_FREE has literally no
         // concept of a key at all (unofficial endpoint takes no credential of any kind).
-        return type != ProviderType.GOOGLE_WEB_FREE;
+        // SERVER_PROXY (Phase 14) also has no concept of a key - the server uses its
+        // own credentials, never a client-supplied one (ARCHITECTURE.md §12).
+        return type != ProviderType.GOOGLE_WEB_FREE && type != ProviderType.SERVER_PROXY;
     }
 
     private static boolean usesModelField(ProviderType type) {
@@ -321,6 +325,10 @@ public final class ApiEditScreen extends Screen {
             // (requestTemplate/authHeader/authPrefix/responseField), not an
             // OpenAI-shaped endpoint - there is no single sensible URL to suggest.
             case GENERIC_REST -> null;
+            // Phase 14: SERVER_PROXY has no endpoint of its own (it talks to whatever
+            // Minecraft server is currently joined, over the mod's own C2S/S2C payloads,
+            // not a URL).
+            case SERVER_PROXY -> null;
         };
         if (defaultEndpoint != null) {
             endpointBox.setValue(defaultEndpoint);

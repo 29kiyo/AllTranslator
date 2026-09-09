@@ -102,10 +102,9 @@ public final class CommandHandlers {
                 .then(literal("refresh")
                         .requires(CommandHandlers::canRefresh)
                         .executes(ctx -> refresh(ctx.getSource())))
-                .then(literal("scoreboard")
+                .then(literal("config")
                         .requires(permission(Commands.LEVEL_GAMEMASTERS))
-                        .then(literal("on").executes(ctx -> setScoreboard(ctx.getSource(), true)))
-                        .then(literal("off").executes(ctx -> setScoreboard(ctx.getSource(), false))));
+                        .executes(ctx -> openRemoteConfig(ctx.getSource())));
     }
 
     /**
@@ -236,6 +235,39 @@ public final class CommandHandlers {
         com.kiyo.alltranslator.server.ScoreboardManager.refreshEnabledState();
         source.sendSuccess(() -> Component.literal("[All Translator] Scoreboard: "
                 + (enabled ? "ON" : "OFF") + "."), true);
+        return 1;
+    }
+
+    /**
+     * Phase 14 (SERVER_PROXY): backing executor for /alltranslator serverproxy
+     * on|off. Server-wide admin opt-in - see ConfigModel#serverProxyTranslationEnabled
+     * and AllTranslatorNetworking's request handler for what this actually gates.
+     */
+    private static int setServerProxy(CommandSourceStack source, boolean enabled) {
+        ConfigManager configManager = AllTranslatorCore.configManager();
+        configManager.model().serverProxyTranslationEnabled = enabled;
+        configManager.save();
+        source.sendSuccess(() -> Component.literal("[All Translator] Server-proxy translation: "
+                + (enabled ? "ON" : "OFF") + "."), true);
+        return 1;
+    }
+
+    /**
+     * Phase 14: backing executor for /alltranslator config. Pushes a
+     * ServerConfigPayloads.OpenScreen snapshot of this server's own ConfigModel to the
+     * invoker only (requires the All Translator client mod; a vanilla/other-mod client just
+     * silently ignores the unrecognized payload). See ServerConfigNetworking's Javadoc for
+     * the independent permission re-check performed again when the resulting Save payload
+     * comes back.
+     */
+    private static int openRemoteConfig(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("[All Translator] This command must be run by a player (not the console)."));
+            return 0;
+        }
+        com.kiyo.alltranslator.network.ServerConfigNetworking.sendConfigScreen(player);
+        source.sendSuccess(() -> Component.literal("[All Translator] Sent the server config screen (requires the All Translator client mod)."), true);
         return 1;
     }
 

@@ -1,0 +1,55 @@
+
+> Configure project :
+Architect Plugin: 3.5.169
+Architectury Loom: 1.17.491
+
+> Task :neoforge:processResources UP-TO-DATE
+> Task :fabric:processResources UP-TO-DATE
+> Task :fabric:processIncludeJars UP-TO-DATE
+> Task :neoforge:processIncludeJars UP-TO-DATE
+> Task :fabric:sourcesJar UP-TO-DATE
+> Task :neoforge:sourcesJar UP-TO-DATE
+> Task :fabric:processTestResources NO-SOURCE
+> Task :neoforge:processTestResources NO-SOURCE
+> Task :fabric:validateAccessWidener NO-SOURCE
+> Task :neoforge:validateAccessWidener NO-SOURCE
+> Task :common:compileJava UP-TO-DATE
+> Task :common:processResources UP-TO-DATE
+> Task :common:classes UP-TO-DATE
+> Task :common:processIncludeJars UP-TO-DATE
+> Task :common:jar UP-TO-DATE
+> Task :common:sourcesJar UP-TO-DATE
+> Task :common:assemble UP-TO-DATE
+> Task :common:compileTestJava NO-SOURCE
+> Task :common:processTestResources NO-SOURCE
+> Task :common:testClasses UP-TO-DATE
+> Task :common:test NO-SOURCE
+> Task :common:validateAccessWidener NO-SOURCE
+> Task :fabric:compileJava UP-TO-DATE
+> Task :common:check UP-TO-DATE
+> Task :fabric:classes UP-TO-DATE
+> Task :neoforge:compileJava UP-TO-DATE
+> Task :neoforge:classes UP-TO-DATE
+> Task :fabric:jar UP-TO-DATE
+> Task :fabric:compileTestJava NO-SOURCE
+> Task :neoforge:jar UP-TO-DATE
+> Task :fabric:testClasses UP-TO-DATE
+> Task :fabric:test NO-SOURCE
+> Task :neoforge:compileTestJava NO-SOURCE
+> Task :fabric:check UP-TO-DATE
+> Task :neoforge:testClasses UP-TO-DATE
+> Task :neoforge:test NO-SOURCE
+> Task :neoforge:check UP-TO-DATE
+> Task :common:transformProductionFabric UP-TO-DATE
+> Task :common:transformProductionNeoForge UP-TO-DATE
+> Task :common:build UP-TO-DATE
+> Task :fabric:shadowJar UP-TO-DATE
+> Task :fabric:assemble UP-TO-DATE
+> Task :fabric:build UP-TO-DATE
+> Task :neoforge:shadowJar UP-TO-DATE
+> Task :neoforge:assemble UP-TO-DATE
+> Task :neoforge:build UP-TO-DATE
+
+BUILD SUCCESSFUL in 3s
+19 actionable tasks: 19 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html

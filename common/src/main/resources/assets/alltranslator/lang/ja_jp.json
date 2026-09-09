@@ -49,5 +49,22 @@
   "gui.alltranslator.config.max_concurrent_requests": "同時リクエスト数上限",
   "gui.alltranslator.config.scoreboard": "スコアボード表示",
   "gui.alltranslator.config.scoreboard_interval": "スコアボード更新間隔(秒)",
-  "key.alltranslator.refresh": "翻訳APIをリフレッシュ"
+  "key.alltranslator.refresh": "翻訳APIをリフレッシュ",
+  "gui.alltranslator.apiedit.provider_server_proxy": "サーバー経由(プロキシ)",
+  "gui.alltranslator.config.categories": "翻訳カテゴリ",
+  "gui.alltranslator.categories.title": "All Translator - 翻訳カテゴリ",
+  "gui.alltranslator.categories.item_names": "アイテム名",
+  "gui.alltranslator.categories.item_tooltips": "アイテムツールチップ",
+  "gui.alltranslator.categories.entity_names": "エンティティ名",
+  "gui.alltranslator.categories.chat": "チャット",
+  "gui.alltranslator.categories.system_messages": "システムメッセージ (/tellraw)",
+  "gui.alltranslator.categories.other_screens": "他Modの画面",
+  "gui.alltranslator.categories.advancement_toasts": "実績トースト通知",
+  "gui.alltranslator.categories.recipe_toasts": "レシピ解放トースト通知",
+  "gui.alltranslator.categories.private_messages_and_titles": "個人メッセージ&タイトル (/tell, /msg, /w, /teammsg, /title)",
+  "gui.alltranslator.serverconfig.title": "All Translator サーバー設定",
+  "gui.alltranslator.config.server_proxy": "サーバー経由翻訳",
+  "gui.alltranslator.config.server_proxy_label": "サーバー経由翻訳",
+  "gui.alltranslator.apiedit.remote_key_notice": "APIキー: サーバー本体でMキーから設定してください",
+  "gui.alltranslator.serverconfig.window_too_small": "ウィンドウが小さすぎます。ウィンドウを大きくしてください。"
 }

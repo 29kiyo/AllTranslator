@@ -49,5 +49,22 @@
   "gui.alltranslator.config.max_concurrent_requests": "Max concurrent requests",
   "gui.alltranslator.config.scoreboard": "Show scoreboard",
   "gui.alltranslator.config.scoreboard_interval": "Scoreboard update interval (sec)",
-  "key.alltranslator.refresh": "Refresh Translation APIs"
+  "key.alltranslator.refresh": "Refresh Translation APIs",
+  "gui.alltranslator.apiedit.provider_server_proxy": "Use Server (Proxy)",
+  "gui.alltranslator.config.categories": "Translation Categories",
+  "gui.alltranslator.categories.title": "All Translator - Translation Categories",
+  "gui.alltranslator.categories.item_names": "Item Names",
+  "gui.alltranslator.categories.item_tooltips": "Item Tooltips",
+  "gui.alltranslator.categories.entity_names": "Entity Names",
+  "gui.alltranslator.categories.chat": "Chat",
+  "gui.alltranslator.categories.system_messages": "System Messages (/tellraw)",
+  "gui.alltranslator.categories.other_screens": "Other Mod Screens",
+  "gui.alltranslator.categories.advancement_toasts": "Advancement Toasts",
+  "gui.alltranslator.categories.recipe_toasts": "Recipe Unlock Toasts",
+  "gui.alltranslator.categories.private_messages_and_titles": "Private Messages & Titles (/tell, /msg, /w, /teammsg, /title)",
+  "gui.alltranslator.serverconfig.title": "All Translator Server Config",
+  "gui.alltranslator.config.server_proxy": "Server-Proxy Translation",
+  "gui.alltranslator.config.server_proxy_label": "Server-Proxy Translation",
+  "gui.alltranslator.apiedit.remote_key_notice": "API Key: set locally on the server (M key)",
+  "gui.alltranslator.serverconfig.window_too_small": "Window too small for this screen. Please resize/maximize your window."
 }

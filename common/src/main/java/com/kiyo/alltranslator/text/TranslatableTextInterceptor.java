@@ -146,28 +146,116 @@ public final class TranslatableTextInterceptor {
             byCacheKey.remove(cacheKey, future);
             return original;
         }
-        translated = reapplyArgsIfNeeded(original, translated);
+        translated = reapplyArgsIfNeeded(original, translated, targetLang);
         knownOutputs.add(translated);
         MutableComponent result = Component.literal(translated);
         result.setStyle(original.getStyle());
         return result;
     }
 
-    private static String reapplyArgsIfNeeded(Component original, String translated) {
+    /**
+     * Real-world bug fix (investigation #5 follow-up): mirrors
+     * ItemTooltipTranslationHook#extractKey()'s sibling-aware key detection - some
+     * tooltip lines (e.g. attack damage/speed) have a whitespace-only LiteralContents
+     * ROOT with the actual TranslatableContents (holding the args this method needs)
+     * attached as a sibling, rather than being a root-level TranslatableContents like
+     * the armor line. Without this, reapplyArgsIfNeeded would find no args for such
+     * lines and leave the existing-translation template's "%s %s" placeholders
+     * unfilled/displayed literally.
+     */
+    private static TranslatableContents findTranslatableContents(Component component) {
+        if (component.getContents() instanceof TranslatableContents tc) {
+            return tc;
+        }
+        for (Component sibling : component.getSiblings()) {
+            if (sibling.getContents() instanceof TranslatableContents stc) {
+                return stc;
+            }
+        }
+        return null;
+    }
+
+    private static String reapplyArgsIfNeeded(Component original, String translated, String targetLang) {
         if (translated.indexOf('%') < 0) {
             return translated;
         }
-        if (!(original.getContents() instanceof TranslatableContents tc)) {
+        TranslatableContents tc = findTranslatableContents(original);
+        if (tc == null) {
             return translated;
         }
         Object[] args = tc.getArgs();
         if (args == null || args.length == 0) {
             return translated;
         }
+        // Real-world bug fix (Toast/Advancement translation task session follow-up):
+        // confirmed via real-world testing (potion tooltip lines like
+        // "potion.withAmplifier" whose args are themselves nested TranslatableContents,
+        // e.g. "effect.minecraft.slowness"/"potion.potency.3") that passing a raw
+        // Component element straight into String#format's "%s" conversion invokes
+        // Component/TranslatableContents's own Object#toString() (e.g. literally
+        // "translation{key='effect.minecraft.slowness', args=[]}"), NOT the resolved
+        // display text.
+        //
+        // Second, separate real-world bug fix (attribute.modifier.plus.0, e.g. "+2
+        // Armor" never becoming "防御力 +2"): even after flattening arg Components to
+        // plain text, a naive Component#getString() resolves using the CLIENT's own
+        // live display language (whatever locale the client's Font/I18n is currently
+        // using), NOT this interceptor's actual target language - confirmed via
+        // real-world testing that a nested arg Component (e.g. attribute.name.armor)
+        // always came back as English "Armor" even when targetLang was ja_jp, because
+        // the client itself was running in en_us. Fixed by resolveArgPlainText() below:
+        // for any arg that is ITSELF a TranslatableContents, this looks up ITS OWN key
+        // against ExistingTranslationChecker for targetLang FIRST (same
+        // ARCHITECTURE.md §3 priority every other keyed value in this project already
+        // gets), falling back to plain getString() only if no existing translation is
+        // found for that nested key (e.g. a mod-added attribute with no ja_jp entry -
+        // acceptable degraded behavior, matching pre-existing behavior for such cases;
+        // fully translating an arbitrary nested arg via the async API is out of scope
+        // for this synchronous formatting step).
+        Object[] plainArgs = new Object[args.length];
+        for (int i = 0; i < args.length; i++) {
+            plainArgs[i] = resolveArgPlainText(args[i], targetLang);
+        }
         try {
-            return String.format(Locale.ROOT, translated, args);
+            return String.format(Locale.ROOT, translated, plainArgs);
         } catch (IllegalFormatException e) {
             return translated;
+        }
+    }
+
+    /**
+     * Resolves a single TranslatableContents arg to TARGET-language plain text - see
+     * reapplyArgsIfNeeded's Javadoc for the real-world bug this fixes. Recurses one
+     * level to handle a nested arg that itself has its own args (e.g. a nested
+     * template), falling back to plain getString() (client's live language) wherever
+     * no existing translation is found for a given key - never throws, matching this
+     * class's overall defensive style.
+     */
+    private static Object resolveArgPlainText(Object arg, String targetLang) {
+        if (!(arg instanceof Component c)) {
+            return arg;
+        }
+        if (!(c.getContents() instanceof TranslatableContents nestedTc)) {
+            return c.getString();
+        }
+        String existing = AllTranslatorCore.existingTranslationChecker().check(nestedTc.getKey(), targetLang);
+        if (existing == null) {
+            return c.getString();
+        }
+        Object[] nestedArgs = nestedTc.getArgs();
+        if (existing.indexOf('%') < 0 || nestedArgs == null || nestedArgs.length == 0) {
+            return existing;
+        }
+        Object[] nestedPlainArgs = new Object[nestedArgs.length];
+        for (int i = 0; i < nestedArgs.length; i++) {
+            // One level of recursion only - deeper nesting falls back to plain
+            // getString() rather than recursing indefinitely.
+            nestedPlainArgs[i] = (nestedArgs[i] instanceof Component nc) ? nc.getString() : nestedArgs[i];
+        }
+        try {
+            return String.format(Locale.ROOT, existing, nestedPlainArgs);
+        } catch (IllegalFormatException e) {
+            return existing;
         }
     }
 

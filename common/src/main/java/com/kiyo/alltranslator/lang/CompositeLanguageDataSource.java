@@ -5,11 +5,18 @@ import java.util.List;
 /**
  * Tries each source in priority order for each lookup; first non-null value wins.
  * Used to layer: user custom lang/ files (highest priority) over Minecraft resource-pack
- * lang files. Note: the "not just the en_us fallback carried through" check in
- * ExistingTranslationChecker compares whatever the composite returns for the target value
- * against whatever it returns for the default value - if two DIFFERENT sources happen to
- * produce identical text by coincidence, it could be misclassified as a fallback. Accepted
- * as a rare edge case for now.
+ * lang files.
+ *
+ * Investigation #6 (Phase 14): ExistingTranslationChecker previously also compared the
+ * target-language value against the default-language value and rejected an exact match
+ * as "fallback carried through". That heuristic was removed after real-machine testing
+ * showed it misclassified genuine vanilla ja_jp translations that are byte-identical to
+ * en_us by coincidence (see ExistingTranslationChecker's Javadoc for the concrete
+ * example keys). Each lookupXxxLanguageValue(...) method here only returns a value that
+ * genuinely exists in that specific language's own underlying data (neither
+ * MinecraftLanguageDataSource nor CustomLanguageFileManager merge in en_us as a
+ * fallback), so no equality-based "is this really the target language" re-check is
+ * needed at this layer either.
  */
 public final class CompositeLanguageDataSource implements LanguageDataSource {
 

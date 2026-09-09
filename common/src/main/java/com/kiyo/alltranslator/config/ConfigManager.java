@@ -52,4 +52,14 @@ public final class ConfigManager {
     }
 
     public ConfigModel model() { return model; }
+
+    /**
+     * Phase 14 (remote server config): replaces the entire in-memory model, e.g. after
+     * deserializing a Save payload from a remote admin's client. Caller is responsible for
+     * calling save() afterward if persistence to disk is desired (mirrors load()/model()'s
+     * existing lack of auto-persistence).
+     */
+    public synchronized void replaceModel(ConfigModel newModel) {
+        this.model = newModel;
+    }
 }

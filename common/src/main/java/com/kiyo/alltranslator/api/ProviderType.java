@@ -21,5 +21,14 @@ public enum ProviderType {
     GOOGLE_WEB_FREE,
     GOOGLE_CLOUD_V2,
     ANTHROPIC,
-    GEMINI
+    GEMINI,
+    /**
+     * Phase 14: client-only pseudo-provider that asks the currently-joined
+     * server to translate on our behalf using the SERVER's own configured
+     * API/credentials, so individual clients don't each need their own key.
+     * Never registered server-side (ProviderFactory) and never receiver-side
+     * self-selectable (TranslationService's excludeProvider overload) - see
+     * ServerProxyProvider's Javadoc and DEVELOPMENT_STATUS.md Phase 14 task 4.
+     */
+    SERVER_PROXY
 }

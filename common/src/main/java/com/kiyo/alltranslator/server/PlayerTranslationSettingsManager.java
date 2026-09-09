@@ -73,13 +73,25 @@ public final class PlayerTranslationSettingsManager {
 
     /** null clears the override (falls back to the server-wide switch). */
     public synchronized void setEnabled(UUID playerId, Boolean enabled) {
-        update(playerId, existing -> new PlayerTranslationSettings(enabled, existing.languageOverride()));
+        update(playerId, existing -> new PlayerTranslationSettings(enabled, existing.languageOverride(), existing.autoSyncedLanguage()));
     }
 
     /** null/blank clears the override (falls back to the player's own client language). */
     public synchronized void setLanguageOverride(UUID playerId, String languageOverride) {
         String normalized = (languageOverride == null || languageOverride.isBlank()) ? null : languageOverride;
-        update(playerId, existing -> new PlayerTranslationSettings(existing.enabled(), normalized));
+        update(playerId, existing -> new PlayerTranslationSettings(existing.enabled(), normalized, existing.autoSyncedLanguage()));
+    }
+
+    /**
+     * Phase 14 (M-key auto-sync): sets/clears autoSyncedLanguage - see that
+     * field's Javadoc on PlayerTranslationSettings for why this is kept separate
+     * from setLanguageOverride() above rather than reusing it. null/blank clears
+     * the auto-synced value (e.g. the client cleared their M-key language box
+     * back to "auto").
+     */
+    public synchronized void setAutoSyncedLanguage(UUID playerId, String autoSyncedLanguage) {
+        String normalized = (autoSyncedLanguage == null || autoSyncedLanguage.isBlank()) ? null : autoSyncedLanguage;
+        update(playerId, existing -> new PlayerTranslationSettings(existing.enabled(), existing.languageOverride(), normalized));
     }
 
     private void update(UUID playerId, UnaryOperator<PlayerTranslationSettings> updater) {

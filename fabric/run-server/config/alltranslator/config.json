@@ -24,5 +24,12 @@
   "apiErrorToastEnabled": true,
   "apiErrorToastSoundEnabled": true,
   "translateOtherModScreens": true,
-  "showOriginalNameOnItems": true
+  "translateItemNames": true,
+  "translateItemTooltips": true,
+  "translateEntityNames": true,
+  "translateChat": true,
+  "translateSystemMessages": true,
+  "showOriginalNameOnItems": true,
+  "serverProxyTranslationEnabled": true,
+  "serverProxyTimeoutSeconds": 60
 }

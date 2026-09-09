@@ -33,6 +33,9 @@ public final class ItemTooltipTranslationHook {
 
     public static void register(TranslatableTextInterceptor interceptor) {
         ClientTooltipEvent.ITEM.register((stack, lines, tooltipContext, flag) -> {
+            if (!AllTranslatorCore.configManager().model().translateItemTooltips) {
+                return;
+            }
             for (int i = 0; i < lines.size(); i++) {
                 Component original = lines.get(i);
                 String key = extractKey(original);
@@ -65,9 +68,30 @@ public final class ItemTooltipTranslationHook {
         return IDENTIFIER_OR_DATA_PATTERN.matcher(plainText.trim()).matches();
     }
 
+    /**
+     * Real-world bug fix (investigation #5): confirmed via real-world testing that
+     * attribute-modifier tooltip lines like attack damage/speed (unlike the armor
+     * line, which IS a root-level TranslatableContents) are actually built as a
+     * LiteralContents ROOT (whitespace-only, e.g. " ") with the REAL
+     * TranslatableContents (e.g. key=attribute.modifier.equals.0) attached as a
+     * SIBLING - confirmed via a standalone diagnostic dump of the exact Component
+     * tree shape before writing this fix (CLAUDE.md §3/§21). Extended to check the
+     * first sibling that is itself a TranslatableContents when the root isn't one,
+     * so ItemTooltipTranslationHook's existing-translation-priority path (which
+     * depends entirely on a non-null key) also applies to this line shape, exactly
+     * like the armor line already benefited from. Only checks ONE level (siblings of
+     * the immediate Component, not recursively) - sufficient for every vanilla
+     * attribute-modifier tooltip line confirmed so far; a mod nesting keys deeper
+     * would still fall through to the pre-existing keyless/API path unchanged.
+     */
     private static String extractKey(Component component) {
         if (component.getContents() instanceof TranslatableContents tc) {
             return tc.getKey();
+        }
+        for (Component sibling : component.getSiblings()) {
+            if (sibling.getContents() instanceof TranslatableContents stc) {
+                return stc.getKey();
+            }
         }
         return null;
     }

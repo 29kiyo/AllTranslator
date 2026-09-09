@@ -56,7 +56,6 @@ public final class AllTranslatorConfigScreen extends Screen {
     private int labelShowOriginalY;
     private int labelToastY;
     private int labelToastSoundY;
-    private int labelOtherScreensY;
 
     private int apiCountLabelY;
     private int apiButtonY;
@@ -75,7 +74,6 @@ public final class AllTranslatorConfigScreen extends Screen {
     private CycleButton<Boolean> showOriginalTextButton;
     private CycleButton<Boolean> toastEnabledButton;
     private CycleButton<Boolean> toastSoundButton;
-    private CycleButton<Boolean> otherScreensButton;
 
     public AllTranslatorConfigScreen(Screen parent) {
         super(Component.translatable("gui.alltranslator.config.title"));
@@ -133,12 +131,6 @@ public final class AllTranslatorConfigScreen extends Screen {
         this.addRenderableWidget(ttlBox);
         y += ROW_HEIGHT;
 
-        labelShowOriginalNameY = y;
-        showOriginalNameButton = CycleButton.onOffBuilder(model.showOriginalNameOnItems)
-                .create(leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.show_original_on_items"));
-        this.addRenderableWidget(showOriginalNameButton);
-        y += ROW_HEIGHT;
-
         labelMaxConcurrentY = y;
         maxConcurrentBox = new EditBox(this.font, leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.max_concurrent_requests"));
         maxConcurrentBox.setMaxLength(3);
@@ -164,6 +156,12 @@ public final class AllTranslatorConfigScreen extends Screen {
         this.addRenderableWidget(showOriginalTextButton);
         y += ROW_HEIGHT;
 
+        labelShowOriginalNameY = y;
+        showOriginalNameButton = CycleButton.onOffBuilder(model.showOriginalNameOnItems)
+                .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.show_original_on_items"));
+        this.addRenderableWidget(showOriginalNameButton);
+        y += ROW_HEIGHT;
+
         labelToastY = y;
         toastEnabledButton = CycleButton.onOffBuilder(model.apiErrorToastEnabled)
                 .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.api_error_toast"));
@@ -174,12 +172,6 @@ public final class AllTranslatorConfigScreen extends Screen {
         toastSoundButton = CycleButton.onOffBuilder(model.apiErrorToastSoundEnabled)
                 .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.api_error_toast_sound"));
         this.addRenderableWidget(toastSoundButton);
-        y += ROW_HEIGHT;
-
-        labelOtherScreensY = y;
-        otherScreensButton = CycleButton.onOffBuilder(model.translateOtherModScreens)
-                .create(rightX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.translate_other_screens"));
-        this.addRenderableWidget(otherScreensButton);
         y += ROW_HEIGHT;
 
         labelScoreboardY = y;
@@ -209,6 +201,13 @@ public final class AllTranslatorConfigScreen extends Screen {
                         .build());
 
         this.addRenderableWidget(
+                Button.builder(Component.translatable("gui.alltranslator.config.categories"), button ->
+                                this.minecraft.gui.setScreen(new TranslationCategoriesScreen(this)))
+                        .pos(this.width / 2 - 100, apiButtonY + 24)
+                        .size(200, 20)
+                        .build());
+
+        this.addRenderableWidget(
                 Button.builder(CommonComponents.GUI_DONE, button -> onDone())
                         .pos(this.width / 2 - 75, this.height - 24)
                         .size(150, 20)
@@ -226,7 +225,6 @@ public final class AllTranslatorConfigScreen extends Screen {
         model.showOriginalTextInChat = showOriginalTextButton.getValue();
         model.apiErrorToastEnabled = toastEnabledButton.getValue();
         model.apiErrorToastSoundEnabled = toastSoundButton.getValue();
-        model.translateOtherModScreens = otherScreensButton.getValue();
         model.showOriginalNameOnItems = showOriginalNameButton.getValue();
 
         String targetLanguage = targetLanguageBox.getValue().trim();
@@ -274,6 +272,14 @@ public final class AllTranslatorConfigScreen extends Screen {
             AllTranslatorCore.translationService().setMaxConcurrentHttpRequests(model.maxConcurrentHttpRequests);
         }
         com.kiyo.alltranslator.server.ScoreboardManager.refreshEnabledState();
+
+        // Phase 14 (M-key auto-sync, user request): re-push the (possibly just
+        // changed) target language to whatever server we're currently connected
+        // to, immediately on save - not just at login - so changing it mid-session
+        // takes effect without needing to reconnect. See
+        // PlayerLanguageSyncClient's Javadoc; a no-op if not connected to a server
+        // that understands this payload.
+        com.kiyo.alltranslator.client.PlayerLanguageSyncClient.sendCurrentLanguage();
     }
 
     @Override
@@ -292,14 +298,13 @@ public final class AllTranslatorConfigScreen extends Screen {
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.server_chat_label"), leftX, labelServerChatY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.memory_cache_capacity"), leftX, labelMemCacheY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.dynamic_text_ttl"), leftX, labelTtlY, LABEL_COLOR);
-        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.show_original_on_items"), leftX, labelShowOriginalNameY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.max_concurrent_requests"), leftX, labelMaxConcurrentY, LABEL_COLOR);
 
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.google_free"), rightX, labelGoogleFreeY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.show_original_in_chat_label"), rightX, labelShowOriginalY, LABEL_COLOR);
+        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.show_original_on_items"), rightX, labelShowOriginalNameY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.api_error_toast"), rightX, labelToastY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.api_error_toast_sound"), rightX, labelToastSoundY, LABEL_COLOR);
-        drawContext.text(this.font, Component.translatable("gui.alltranslator.config.translate_other_screens"), rightX, labelOtherScreensY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.scoreboard"), rightX, labelScoreboardY, LABEL_COLOR);
         drawContext.text(this.font, Component.translatable("gui.alltranslator.config.scoreboard_interval"), rightX, labelScoreboardIntervalY, LABEL_COLOR);
 

@@ -164,10 +164,14 @@ public final class LanguageResolver {
      * language instruction, so this table is only consulted by the three
      * prompt-based providers above.
      *
-     * Falls back to returning the code itself, unchanged, for anything not in this
-     * (intentionally non-exhaustive - matches COMMON_ALIASES's own scope) table, so
-     * an unrecognized/less-common target language still gets SOME instruction
-     * rather than none.
+     * Phase 14 (2nd revision): for codes not in this table, toReadableName() no longer
+     * falls straight through to the raw code. It first attempts a dynamic lookup via
+     * java.util.Locale (see resolveViaLocale()) and only falls back to the raw code if
+     * that also fails to produce a real display name. This is purely a "make sure the
+     * LLM understands which language is meant" fix - it does NOT improve or guarantee
+     * translation quality for languages the underlying model itself barely knows; that
+     * remains a model-capability limitation (see DEVELOPMENT_STATUS.md's local 7B
+     * quantized model quality notes).
      */
     private static final Map<String, String> READABLE_NAMES = Map.ofEntries(
             Map.entry("en_us", "English"),
@@ -206,9 +210,73 @@ public final class LanguageResolver {
             Map.entry("ar_sa", "Arabic")
     );
 
-    /** @param normalizedCode already-normalized (normalize()'d) target language code. */
+    /**
+     * @param normalizedCode already-normalized (normalize()'d) target language code.
+     *
+     * Three-tier fallback (Phase 14, 2nd revision):
+     *   1. READABLE_NAMES table (curated, always wins if present)
+     *   2. java.util.Locale dynamic resolution (resolveViaLocale())
+     *   3. the raw normalizedCode, unchanged, if both of the above fail
+     *
+     * Only affects the three prompt-based providers (OpenAiCompatibleProvider,
+     * AnthropicProvider, GeminiProvider). DeepL/GoogleCloudV2/GoogleWebFree pass the
+     * language code as a dedicated API parameter and never call this method for that
+     * purpose.
+     */
     public static String toReadableName(String normalizedCode) {
         if (normalizedCode == null) return null;
-        return READABLE_NAMES.getOrDefault(normalizedCode, normalizedCode);
+        String known = READABLE_NAMES.get(normalizedCode);
+        if (known != null) return known;
+        return resolveViaLocale(normalizedCode);
+    }
+
+    /**
+     * Phase 14 (2nd revision) dynamic fallback for target-language codes not present in
+     * READABLE_NAMES. Verified against actual java.util.Locale behavior (JDK 25, this
+     * project's toolchain) via a standalone test program before writing this method
+     * (CLAUDE.md §3 - no invented API behavior):
+     *
+     *   - Minecraft codes use "xx_yy" (underscore, lowercase region); Locale.forLanguageTag
+     *     expects BCP 47 "xx-YY" (hyphen). Simply replacing '_' with '-' and handing the
+     *     lowercase-region form to forLanguageTag() works correctly - confirmed
+     *     Locale.forLanguageTag("ja-jp").getDisplayLanguage(Locale.ENGLISH) returns
+     *     "Japanese" even with a lowercase region subtag; case is not significant to the
+     *     parser.
+     *   - For a language subtag Locale does not recognize (e.g. the test input "xx_yy"),
+     *     getDisplayLanguage(Locale.ENGLISH) returns the subtag itself back unchanged
+     *     ("xx") rather than throwing or returning blank - confirmed by direct test.
+     *     This is the actual failure signal to detect: if the resolved display name is
+     *     blank OR case-insensitively equal to the parsed language subtag, Locale did not
+     *     actually know this language, so this method falls through to the raw code
+     *     rather than handing the LLM a bare 2-3 letter code as though it were a real
+     *     language name.
+     *   - Real (non-Minecraft-standard) codes resolve correctly, e.g. "km_kh" (Khmer,
+     *     confirmed -> "Khmer") and Minecraft's own non-standard "en_pt" (Pirate Speak,
+     *     confirmed -> "English", since only the "en" language subtag is meaningful to
+     *     Locale; the "pt" here is Minecraft's own regional variant marker, not ISO
+     *     Portuguese, so this correctly still reads as English to the LLM).
+     *   - An empty string input is guarded separately: Locale.forLanguageTag("") parses to
+     *     the special "und" (undefined) locale whose language subtag is itself blank, and
+     *     confirmed getDisplayLanguage() also returns blank for it - handled by the blank
+     *     check below.
+     *
+     * Never throws; returns normalizedCode unchanged on any failure to resolve.
+     */
+    private static String resolveViaLocale(String normalizedCode) {
+        try {
+            String tag = normalizedCode.replace('_', '-');
+            Locale locale = Locale.forLanguageTag(tag);
+            String subtag = locale.getLanguage();
+            if (subtag.isBlank()) {
+                return normalizedCode;
+            }
+            String display = locale.getDisplayLanguage(Locale.ENGLISH);
+            if (display.isBlank() || display.equalsIgnoreCase(subtag)) {
+                return normalizedCode;
+            }
+            return display;
+        } catch (Exception e) {
+            return normalizedCode;
+        }
     }
 }

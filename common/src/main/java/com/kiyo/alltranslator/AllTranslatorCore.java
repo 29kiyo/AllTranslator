@@ -21,6 +21,9 @@ import com.kiyo.alltranslator.service.TranslationService;
 import com.kiyo.alltranslator.text.TranslatableTextInterceptor;
 import com.kiyo.alltranslator.text.ChatTranslationCoordinator;
 import com.kiyo.alltranslator.text.ServerChatTranslationCoordinator;
+import com.kiyo.alltranslator.text.TellrawTranslationCoordinator;
+import com.kiyo.alltranslator.text.AdvancementAnnounceTranslationCoordinator;
+import com.kiyo.alltranslator.text.TitleTranslationCoordinator;
 
 import java.net.http.HttpClient;
 import java.nio.file.Path;
@@ -61,6 +64,13 @@ public final class AllTranslatorCore {
     private static TranslatableTextInterceptor tooltipInterceptor;
     private static TranslatableTextInterceptor itemNameInterceptor;
     private static TranslatableTextInterceptor entityNameInterceptor;
+    // Phase 14 (Toast/Advancement translation task): installed only by
+    // AllTranslatorClientCore#init() (client-side only), same null-on-dedicated-server
+    // guarantee as the three interceptors above. Backs AdvancementToastMixin.
+    private static TranslatableTextInterceptor advancementToastInterceptor;
+    // Phase 14 (Toast/Advancement translation task, follow-up): same pattern, backs
+    // RecipeToastMixin ("New Recipes Unlocked!" toast).
+    private static TranslatableTextInterceptor recipeToastInterceptor;
 
     // Phase 5: installed only by AllTranslatorClientCore#init() (client-side only),
     // same null-on-dedicated-server guarantee as the interceptors above.
@@ -77,6 +87,18 @@ public final class AllTranslatorCore {
     private static PlayerTranslationSettingsManager playerTranslationSettingsManager;
     private static PerPlayerLanguageResolver perPlayerLanguageResolver;
     private static ServerChatTranslationCoordinator serverChatTranslationCoordinator;
+    private static TellrawTranslationCoordinator tellrawTranslationCoordinator;
+    // Phase 14 (Toast/Advancement translation task, follow-up): per-player translation
+    // of the "X has made the advancement [Y]" chat announcement. Deliberately gated on
+    // the EXISTING ConfigModel#translateSystemMessages flag (user decision - this is
+    // conceptually a server-generated system announcement, same category as tellraw),
+    // not a new dedicated flag. Wired unconditionally (both physical sides), same
+    // reasoning as tellrawTranslationCoordinator above.
+    private static AdvancementAnnounceTranslationCoordinator advancementAnnounceCoordinator;
+    // Real-world follow-up fix (Toast/Advancement translation task session): per-player
+    // /title (title/subtitle/actionbar) translation. Wired unconditionally (both physical
+    // sides), same reasoning as the other server-side coordinators above.
+    private static TitleTranslationCoordinator titleTranslationCoordinator;
 
     private AllTranslatorCore() {}
 
@@ -146,6 +168,9 @@ public final class AllTranslatorCore {
         playerTranslationSettingsManager.load();
         perPlayerLanguageResolver = new PerPlayerLanguageResolver(configManager, playerTranslationSettingsManager);
         serverChatTranslationCoordinator = new ServerChatTranslationCoordinator(translationService, perPlayerLanguageResolver, configManager);
+        tellrawTranslationCoordinator = new TellrawTranslationCoordinator(translationService, perPlayerLanguageResolver, configManager);
+        advancementAnnounceCoordinator = new AdvancementAnnounceTranslationCoordinator(translationService, existingTranslationChecker, perPlayerLanguageResolver, configManager);
+        titleTranslationCoordinator = new TitleTranslationCoordinator(translationService, perPlayerLanguageResolver, configManager);
         WorldCacheConnector.install(cacheManager);
 
         // Phase 7: FTB Quests optional compatibility (detection-only skeleton; see
@@ -156,6 +181,15 @@ public final class AllTranslatorCore {
         // queue depth). Off by default (ConfigModel#scoreboardEnabled) - install()
         // just wires the lifecycle/tick hooks, it doesn't turn anything on by itself.
         com.kiyo.alltranslator.server.ScoreboardManager.install();
+
+        // Phase 14 (SERVER_PROXY): common (both-physical-side-safe) C2S/S2C payload
+        // registration. See AllTranslatorNetworking's Javadoc for why this is safe to
+        // call unconditionally here (same reasoning as ServerChatTranslationCoordinator
+        // above) and why the CLIENT-side response receiver is registered separately,
+        // from AllTranslatorClientCore.init() instead.
+        com.kiyo.alltranslator.network.AllTranslatorNetworking.registerCommon();
+        com.kiyo.alltranslator.network.ServerConfigNetworking.registerCommon();
+        com.kiyo.alltranslator.network.PlayerLanguageSyncNetworking.registerCommon();
 
         // Phase 9: /alltranslator (alias /at) commands, ARCHITECTURE.md §13. Registered via
         // Architectury's common CommandRegistrationEvent (verified via javap/sources: fires on
@@ -194,6 +228,20 @@ public final class AllTranslatorCore {
     public static TranslatableTextInterceptor entityNameInterceptor() { return entityNameInterceptor; }
 
     /** Called only from AllTranslatorClientCore#init() (client-side only). */
+    public static synchronized void installAdvancementToastInterceptor(TranslatableTextInterceptor interceptor) {
+        advancementToastInterceptor = interceptor;
+    }
+
+    public static TranslatableTextInterceptor advancementToastInterceptor() { return advancementToastInterceptor; }
+
+    /** Called only from AllTranslatorClientCore#init() (client-side only). */
+    public static synchronized void installRecipeToastInterceptor(TranslatableTextInterceptor interceptor) {
+        recipeToastInterceptor = interceptor;
+    }
+
+    public static TranslatableTextInterceptor recipeToastInterceptor() { return recipeToastInterceptor; }
+
+    /** Called only from AllTranslatorClientCore#init() (client-side only). */
     public static synchronized void installChatTranslationCoordinator(ChatTranslationCoordinator coordinator) {
         chatTranslationCoordinator = coordinator;
     }
@@ -204,6 +252,9 @@ public final class AllTranslatorCore {
     public static PlayerTranslationSettingsManager playerTranslationSettingsManager() { return playerTranslationSettingsManager; }
     public static PerPlayerLanguageResolver perPlayerLanguageResolver() { return perPlayerLanguageResolver; }
     public static ServerChatTranslationCoordinator serverChatTranslationCoordinator() { return serverChatTranslationCoordinator; }
+    public static TellrawTranslationCoordinator tellrawTranslationCoordinator() { return tellrawTranslationCoordinator; }
+    public static AdvancementAnnounceTranslationCoordinator advancementAnnounceCoordinator() { return advancementAnnounceCoordinator; }
+    public static TitleTranslationCoordinator titleTranslationCoordinator() { return titleTranslationCoordinator; }
 
     public static void shutdown() {
         if (executor != null) executor.shutdown();

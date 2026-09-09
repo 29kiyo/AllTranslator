@@ -33,6 +33,11 @@ public final class AllTranslatorClientCore {
             return;
         }
         initialized = true;
+        // Phase 14 (SERVER_PROXY): client-only S2C response receiver. MUST be
+        // registered here (confirmed physical client), never from the common
+        // AllTranslatorCore.init() - see AllTranslatorNetworking's Javadoc.
+        com.kiyo.alltranslator.network.AllTranslatorNetworking.registerClientReceiver();
+        com.kiyo.alltranslator.client.RemoteConfigClientReceiver.register();
         TranslatableTextInterceptor tooltipInterceptor = new TranslatableTextInterceptor(
                 AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.languageResolver());
         TranslatableTextInterceptor itemNameInterceptor = new TranslatableTextInterceptor(
@@ -49,6 +54,18 @@ public final class AllTranslatorClientCore {
         TranslatableTextInterceptor screenWidgetInterceptor = new TranslatableTextInterceptor(
                 AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.languageResolver());
         ScreenWidgetTranslationHook.register(screenWidgetInterceptor);
+        // Phase 14 (Toast/Advancement translation task): "advancement made"/"challenge
+        // complete" toast title. Dedicated interceptor instance (own cache namespace),
+        // same "one instance per content category" pattern as tooltip/item/entity/screen
+        // widget above - see AdvancementToastMixin for the actual hook.
+        TranslatableTextInterceptor advancementToastInterceptor = new TranslatableTextInterceptor(
+                AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.languageResolver());
+        AllTranslatorCore.installAdvancementToastInterceptor(advancementToastInterceptor);
+        // Phase 14 (Toast/Advancement translation task, follow-up): "New Recipes
+        // Unlocked!" toast. Dedicated interceptor instance, same pattern as above.
+        TranslatableTextInterceptor recipeToastInterceptor = new TranslatableTextInterceptor(
+                AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.languageResolver());
+        AllTranslatorCore.installRecipeToastInterceptor(recipeToastInterceptor);
         // Phase 5: chat translation. Loader modules (fabric/neoforge) register the
         // actual receive-event listener and call AllTranslatorCore.chatTranslationCoordinator()
         // once this returns, since Fabric API's message events and NeoForge's
@@ -64,6 +81,22 @@ public final class AllTranslatorClientCore {
         // with no loader-specific code.
         dev.architectury.event.events.client.ClientTickEvent.CLIENT_POST.register(
                 client -> chatTranslationCoordinator.onClientTick(client));
+        // Phase 14 real-world crash fix: RemoteConfigClientReceiver defers its
+        // setScreen() call to a safe tick boundary - see that class's Javadoc for why
+        // (the same ClientTickEvent.CLIENT_POST wiring pattern as the coordinator above).
+        dev.architectury.event.events.client.ClientTickEvent.CLIENT_POST.register(
+                client -> com.kiyo.alltranslator.client.RemoteConfigClientReceiver.onClientTick(client));
+        // Phase 14 (M-key auto-sync, user request): push this client's own
+        // ConfigModel#forcedTargetLanguage to the server on every login, so a
+        // player who only ever uses the familiar M-key screen doesn't also need
+        // to remember /alltranslator language. Uses Architectury's common
+        // ClientPlayerEvent.CLIENT_PLAYER_JOIN (verified via javap against
+        // architectury-fabric-21.0.7.jar: LocalPlayer-only callback, no loader
+        // split needed) - fires once per join, both singleplayer and multiplayer.
+        // See PlayerLanguageSyncPayloads' Javadoc for what this payload does and
+        // does not carry (a language code only, never any config/API data).
+        dev.architectury.event.events.client.ClientPlayerEvent.CLIENT_PLAYER_JOIN.register(
+                localPlayer -> com.kiyo.alltranslator.client.PlayerLanguageSyncClient.sendCurrentLanguage());
         // Phase 8: the shared L-keybinding that opens AllTranslatorConfigScreen. Uses
         // Architectury's common KeyMappingRegistry/ClientTickEvent (verified via javap -
         // no per-loader split needed), so registering it once here covers both Fabric

@@ -31,6 +31,9 @@ public abstract class ItemStackMixin {
         if (interceptor == null) {
             return;
         }
+        if (!AllTranslatorCore.configManager().model().translateItemNames) {
+            return;
+        }
         Component original = cir.getReturnValue();
         if (original == null) {
             return;

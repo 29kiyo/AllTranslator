@@ -19,7 +19,7 @@ package com.kiyo.alltranslator.server;
  */
 public final class PlayerTranslationSettings {
 
-    public static final PlayerTranslationSettings DEFAULT = new PlayerTranslationSettings(null, null);
+    public static final PlayerTranslationSettings DEFAULT = new PlayerTranslationSettings(null, null, null);
 
     // Not final: Gson populates these fields directly via reflection when deserializing
     // player-settings.json (it does not go through the constructor below), which on modern
@@ -29,14 +29,37 @@ public final class PlayerTranslationSettings {
     // outside this class can't mutate an instance either way.
     private Boolean enabled;
     private String languageOverride;
+    /**
+     * Phase 14 (M-key auto-sync, user request): distinct from languageOverride
+     * above, which is set ONLY via the explicit /alltranslator language command
+     * and always takes priority. This field is set automatically whenever the
+     * client's OWN local ConfigModel#forcedTargetLanguage (M-key screen) is
+     * non-blank, via a new lightweight C2S payload (PlayerLanguageSyncPayloads),
+     * sent on login and whenever that screen is saved. Reasoning (user request):
+     * remembering to separately run /alltranslator language after already
+     * setting a language in the familiar M-key screen is easy to forget, and for
+     * a lone player who is effectively both "the server admin" and "the only
+     * player" there is no real reason those two settings should require two
+     * separate actions. Kept as a SEPARATE field from languageOverride (rather
+     * than writing directly into it) specifically so an explicit
+     * /alltranslator language command - a deliberate, individually-typed choice
+     * - is never silently overwritten by a later, merely-incidental M-key save
+     * (e.g. opening the M-key screen for an unrelated setting and hitting Done
+     * with an old value still in the language box). See
+     * PerPlayerLanguageResolver#resolve() for the full priority order this
+     * participates in.
+     */
+    private String autoSyncedLanguage;
 
-    public PlayerTranslationSettings(Boolean enabled, String languageOverride) {
+    public PlayerTranslationSettings(Boolean enabled, String languageOverride, String autoSyncedLanguage) {
         this.enabled = enabled;
         this.languageOverride = languageOverride;
+        this.autoSyncedLanguage = autoSyncedLanguage;
     }
 
     public Boolean enabled() { return enabled; }
     public String languageOverride() { return languageOverride; }
+    public String autoSyncedLanguage() { return autoSyncedLanguage; }
 
-    public boolean isDefault() { return enabled == null && languageOverride == null; }
+    public boolean isDefault() { return enabled == null && languageOverride == null && autoSyncedLanguage == null; }
 }
