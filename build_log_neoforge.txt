@@ -1,34 +1,34 @@
 
 > Configure project :
 Architect Plugin: 3.5.169
-Architectury Loom: 1.17.491
+Architectury Loom: 1.17.493
 
+> Task :neoforge:processResources UP-TO-DATE
+> Task :neoforge:processIncludeJars
+> Task :neoforge:sourcesJar UP-TO-DATE
+> Task :neoforge:processTestResources NO-SOURCE
+> Task :neoforge:validateAccessWidener NO-SOURCE
 > Task :common:compileJava UP-TO-DATE
 > Task :common:processResources UP-TO-DATE
 > Task :common:classes UP-TO-DATE
 > Task :common:processIncludeJars UP-TO-DATE
 > Task :common:jar UP-TO-DATE
-> Task :neoforge:processResources
 > Task :neoforge:compileJava
 > Task :neoforge:classes
-> Task :neoforge:processIncludeJars
 > Task :neoforge:jar
-> Task :neoforge:sourcesJar
 > Task :neoforge:compileTestJava NO-SOURCE
-> Task :neoforge:processTestResources NO-SOURCE
 > Task :neoforge:testClasses UP-TO-DATE
 > Task :neoforge:test NO-SOURCE
-> Task :neoforge:validateAccessWidener NO-SOURCE
 > Task :neoforge:check UP-TO-DATE
 
 > Task :common:transformProductionNeoForge
-[Architectury Transformer] Read classpath in 1.932 s
-[Architectury Transformer] Transformed jar with 5 transformer(s) in 2.666 s
+[Architectury Transformer] Read classpath in 1.867 s
+[Architectury Transformer] Transformed jar with 5 transformer(s) in 2.428 s
 
 > Task :neoforge:shadowJar
 > Task :neoforge:assemble
 > Task :neoforge:build
 
 BUILD SUCCESSFUL in 5s
-11 actionable tasks: 7 executed, 4 up-to-date
+11 actionable tasks: 5 executed, 6 up-to-date
 Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html

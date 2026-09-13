@@ -1,0 +1,1489 @@
+===== net.minecraft.world.BossEvent =====
+Compiled from "BossEvent.java"
+public abstract class net.minecraft.world.BossEvent {
+  private final java.util.UUID id;
+
+  protected net.minecraft.network.chat.Component name;
+
+  protected float progress;
+
+  protected net.minecraft.world.BossEvent$BossBarColor color;
+
+  protected net.minecraft.world.BossEvent$BossBarOverlay overlay;
+
+  protected boolean darkenScreen;
+
+  protected boolean playBossMusic;
+
+  protected boolean createWorldFog;
+
+  public net.minecraft.world.BossEvent(java.util.UUID, net.minecraft.network.chat.Component, net.minecraft.world.BossEvent$BossBarColor, net.minecraft.world.BossEvent$BossBarOverlay);
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: aload_1
+         6: putfield      #7                  // Field id:Ljava/util/UUID;
+         9: aload_0
+        10: aload_2
+        11: putfield      #13                 // Field name:Lnet/minecraft/network/chat/Component;
+        14: aload_0
+        15: aload_3
+        16: putfield      #17                 // Field color:Lnet/minecraft/world/BossEvent$BossBarColor;
+        19: aload_0
+        20: aload         4
+        22: putfield      #21                 // Field overlay:Lnet/minecraft/world/BossEvent$BossBarOverlay;
+        25: aload_0
+        26: fconst_1
+        27: putfield      #25                 // Field progress:F
+        30: return
+
+  public java.util.UUID getId();
+    Code:
+         0: aload_0
+         1: getfield      #7                  // Field id:Ljava/util/UUID;
+         4: areturn
+
+  public net.minecraft.network.chat.Component getName();
+    Code:
+         0: aload_0
+         1: getfield      #13                 // Field name:Lnet/minecraft/network/chat/Component;
+         4: areturn
+
+  public void setName(net.minecraft.network.chat.Component);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: putfield      #13                 // Field name:Lnet/minecraft/network/chat/Component;
+         5: return
+
+  public float getProgress();
+    Code:
+         0: aload_0
+         1: getfield      #25                 // Field progress:F
+         4: freturn
+
+  public void setProgress(float);
+    Code:
+         0: aload_0
+         1: fload_1
+         2: putfield      #25                 // Field progress:F
+         5: return
+
+  public net.minecraft.world.BossEvent$BossBarColor getColor();
+    Code:
+         0: aload_0
+         1: getfield      #17                 // Field color:Lnet/minecraft/world/BossEvent$BossBarColor;
+         4: areturn
+
+  public void setColor(net.minecraft.world.BossEvent$BossBarColor);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: putfield      #17                 // Field color:Lnet/minecraft/world/BossEvent$BossBarColor;
+         5: return
+
+  public net.minecraft.world.BossEvent$BossBarOverlay getOverlay();
+    Code:
+         0: aload_0
+         1: getfield      #21                 // Field overlay:Lnet/minecraft/world/BossEvent$BossBarOverlay;
+         4: areturn
+
+  public void setOverlay(net.minecraft.world.BossEvent$BossBarOverlay);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: putfield      #21                 // Field overlay:Lnet/minecraft/world/BossEvent$BossBarOverlay;
+         5: return
+
+  public boolean shouldDarkenScreen();
+    Code:
+         0: aload_0
+         1: getfield      #29                 // Field darkenScreen:Z
+         4: ireturn
+
+  public net.minecraft.world.BossEvent setDarkenScreen(boolean);
+    Code:
+         0: aload_0
+         1: iload_1
+         2: putfield      #29                 // Field darkenScreen:Z
+         5: aload_0
+         6: areturn
+
+  public boolean shouldPlayBossMusic();
+    Code:
+         0: aload_0
+         1: getfield      #33                 // Field playBossMusic:Z
+         4: ireturn
+
+  public net.minecraft.world.BossEvent setPlayBossMusic(boolean);
+    Code:
+         0: aload_0
+         1: iload_1
+         2: putfield      #33                 // Field playBossMusic:Z
+         5: aload_0
+         6: areturn
+
+  public net.minecraft.world.BossEvent setCreateWorldFog(boolean);
+    Code:
+         0: aload_0
+         1: iload_1
+         2: putfield      #36                 // Field createWorldFog:Z
+         5: aload_0
+         6: areturn
+
+  public boolean shouldCreateWorldFog();
+    Code:
+         0: aload_0
+         1: getfield      #36                 // Field createWorldFog:Z
+         4: ireturn
+}
+
+===== net.minecraft.server.level.ServerBossEvent =====
+Compiled from "ServerBossEvent.java"
+public class net.minecraft.server.level.ServerBossEvent extends net.minecraft.world.BossEvent {
+  private final java.util.Set<net.minecraft.server.level.ServerPlayer> players;
+
+  private final java.util.Set<net.minecraft.server.level.ServerPlayer> unmodifiablePlayers;
+
+  private boolean visible;
+
+  public net.minecraft.server.level.ServerBossEvent(java.util.UUID, net.minecraft.network.chat.Component, net.minecraft.world.BossEvent$BossBarColor, net.minecraft.world.BossEvent$BossBarOverlay);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: aload_2
+         3: aload_3
+         4: aload         4
+         6: invokespecial #1                  // Method net/minecraft/world/BossEvent."<init>":(Ljava/util/UUID;Lnet/minecraft/network/chat/Component;Lnet/minecraft/world/BossEvent$BossBarColor;Lnet/minecraft/world/BossEvent$BossBarOverlay;)V
+         9: aload_0
+        10: invokestatic  #7                  // Method com/google/common/collect/Sets.newHashSet:()Ljava/util/HashSet;
+        13: putfield      #13                 // Field players:Ljava/util/Set;
+        16: aload_0
+        17: aload_0
+        18: getfield      #13                 // Field players:Ljava/util/Set;
+        21: invokestatic  #19                 // Method java/util/Collections.unmodifiableSet:(Ljava/util/Set;)Ljava/util/Set;
+        24: putfield      #25                 // Field unmodifiablePlayers:Ljava/util/Set;
+        27: aload_0
+        28: iconst_1
+        29: putfield      #28                 // Field visible:Z
+        32: return
+
+  public void setProgress(float);
+    Code:
+         0: fload_1
+         1: aload_0
+         2: getfield      #32                 // Field progress:F
+         5: fcmpl
+         6: ifeq          27
+         9: aload_0
+        10: fload_1
+        11: invokespecial #36                 // Method net/minecraft/world/BossEvent.setProgress:(F)V
+        14: aload_0
+        15: invokevirtual #40                 // Method setDirty:()V
+        18: aload_0
+        19: invokedynamic #44,  0             // InvokeDynamic #0:apply:()Ljava/util/function/Function;
+        24: invokevirtual #48                 // Method broadcast:(Ljava/util/function/Function;)V
+        27: return
+
+  public void setColor(net.minecraft.world.BossEvent$BossBarColor);
+    Code:
+         0: aload_1
+         1: aload_0
+         2: getfield      #52                 // Field color:Lnet/minecraft/world/BossEvent$BossBarColor;
+         5: if_acmpeq     26
+         8: aload_0
+         9: aload_1
+        10: invokespecial #56                 // Method net/minecraft/world/BossEvent.setColor:(Lnet/minecraft/world/BossEvent$BossBarColor;)V
+        13: aload_0
+        14: invokevirtual #40                 // Method setDirty:()V
+        17: aload_0
+        18: invokedynamic #60,  0             // InvokeDynamic #1:apply:()Ljava/util/function/Function;
+        23: invokevirtual #48                 // Method broadcast:(Ljava/util/function/Function;)V
+        26: return
+
+  public void setOverlay(net.minecraft.world.BossEvent$BossBarOverlay);
+    Code:
+         0: aload_1
+         1: aload_0
+         2: getfield      #61                 // Field overlay:Lnet/minecraft/world/BossEvent$BossBarOverlay;
+         5: if_acmpeq     26
+         8: aload_0
+         9: aload_1
+        10: invokespecial #65                 // Method net/minecraft/world/BossEvent.setOverlay:(Lnet/minecraft/world/BossEvent$BossBarOverlay;)V
+        13: aload_0
+        14: invokevirtual #40                 // Method setDirty:()V
+        17: aload_0
+        18: invokedynamic #60,  0             // InvokeDynamic #1:apply:()Ljava/util/function/Function;
+        23: invokevirtual #48                 // Method broadcast:(Ljava/util/function/Function;)V
+        26: return
+
+  public net.minecraft.world.BossEvent setDarkenScreen(boolean);
+    Code:
+         0: iload_1
+         1: aload_0
+         2: getfield      #69                 // Field darkenScreen:Z
+         5: if_icmpeq     27
+         8: aload_0
+         9: iload_1
+        10: invokespecial #72                 // Method net/minecraft/world/BossEvent.setDarkenScreen:(Z)Lnet/minecraft/world/BossEvent;
+        13: pop
+        14: aload_0
+        15: invokevirtual #40                 // Method setDirty:()V
+        18: aload_0
+        19: invokedynamic #76,  0             // InvokeDynamic #2:apply:()Ljava/util/function/Function;
+        24: invokevirtual #48                 // Method broadcast:(Ljava/util/function/Function;)V
+        27: aload_0
+        28: areturn
+
+  public net.minecraft.world.BossEvent setPlayBossMusic(boolean);
+    Code:
+         0: iload_1
+         1: aload_0
+         2: getfield      #77                 // Field playBossMusic:Z
+         5: if_icmpeq     27
+         8: aload_0
+         9: iload_1
+        10: invokespecial #80                 // Method net/minecraft/world/BossEvent.setPlayBossMusic:(Z)Lnet/minecraft/world/BossEvent;
+        13: pop
+        14: aload_0
+        15: invokevirtual #40                 // Method setDirty:()V
+        18: aload_0
+        19: invokedynamic #76,  0             // InvokeDynamic #2:apply:()Ljava/util/function/Function;
+        24: invokevirtual #48                 // Method broadcast:(Ljava/util/function/Function;)V
+        27: aload_0
+        28: areturn
+
+  public net.minecraft.world.BossEvent setCreateWorldFog(boolean);
+    Code:
+         0: iload_1
+         1: aload_0
+         2: getfield      #83                 // Field createWorldFog:Z
+         5: if_icmpeq     27
+         8: aload_0
+         9: iload_1
+        10: invokespecial #86                 // Method net/minecraft/world/BossEvent.setCreateWorldFog:(Z)Lnet/minecraft/world/BossEvent;
+        13: pop
+        14: aload_0
+        15: invokevirtual #40                 // Method setDirty:()V
+        18: aload_0
+        19: invokedynamic #76,  0             // InvokeDynamic #2:apply:()Ljava/util/function/Function;
+        24: invokevirtual #48                 // Method broadcast:(Ljava/util/function/Function;)V
+        27: aload_0
+        28: areturn
+
+  public void setName(net.minecraft.network.chat.Component);
+    Code:
+         0: aload_1
+         1: aload_0
+         2: getfield      #89                 // Field name:Lnet/minecraft/network/chat/Component;
+         5: invokestatic  #93                 // Method com/google/common/base/Objects.equal:(Ljava/lang/Object;Ljava/lang/Object;)Z
+         8: ifne          29
+        11: aload_0
+        12: aload_1
+        13: invokespecial #99                 // Method net/minecraft/world/BossEvent.setName:(Lnet/minecraft/network/chat/Component;)V
+        16: aload_0
+        17: invokevirtual #40                 // Method setDirty:()V
+        20: aload_0
+        21: invokedynamic #103,  0            // InvokeDynamic #3:apply:()Ljava/util/function/Function;
+        26: invokevirtual #48                 // Method broadcast:(Ljava/util/function/Function;)V
+        29: return
+
+  private void broadcast(java.util.function.Function<net.minecraft.world.BossEvent, net.minecraft.network.protocol.game.ClientboundBossEventPacket>);
+    Code:
+         0: aload_0
+         1: getfield      #28                 // Field visible:Z
+         4: ifeq          60
+         7: aload_1
+         8: aload_0
+         9: invokeinterface #104,  2          // InterfaceMethod java/util/function/Function.apply:(Ljava/lang/Object;)Ljava/lang/Object;
+        14: checkcast     #109                // class net/minecraft/network/protocol/game/ClientboundBossEventPacket
+        17: astore_2
+        18: aload_0
+        19: getfield      #13                 // Field players:Ljava/util/Set;
+        22: invokeinterface #111,  1          // InterfaceMethod java/util/Set.iterator:()Ljava/util/Iterator;
+        27: astore_3
+        28: aload_3
+        29: invokeinterface #117,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+        34: ifeq          60
+        37: aload_3
+        38: invokeinterface #123,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+        43: checkcast     #127                // class net/minecraft/server/level/ServerPlayer
+        46: astore        4
+        48: aload         4
+        50: getfield      #129                // Field net/minecraft/server/level/ServerPlayer.connection:Lnet/minecraft/server/network/ServerGamePacketListenerImpl;
+        53: aload_2
+        54: invokevirtual #133                // Method net/minecraft/server/network/ServerGamePacketListenerImpl.send:(Lnet/minecraft/network/protocol/Packet;)V
+        57: goto          28
+        60: return
+
+  public void addPlayer(net.minecraft.server.level.ServerPlayer);
+    Code:
+         0: aload_0
+         1: getfield      #13                 // Field players:Ljava/util/Set;
+         4: aload_1
+         5: invokeinterface #139,  2          // InterfaceMethod java/util/Set.add:(Ljava/lang/Object;)Z
+        10: ifeq          31
+        13: aload_0
+        14: getfield      #28                 // Field visible:Z
+        17: ifeq          31
+        20: aload_1
+        21: getfield      #129                // Field net/minecraft/server/level/ServerPlayer.connection:Lnet/minecraft/server/network/ServerGamePacketListenerImpl;
+        24: aload_0
+        25: invokestatic  #143                // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket.createAddPacket:(Lnet/minecraft/world/BossEvent;)Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket;
+        28: invokevirtual #133                // Method net/minecraft/server/network/ServerGamePacketListenerImpl.send:(Lnet/minecraft/network/protocol/Packet;)V
+        31: return
+
+  public void removePlayer(net.minecraft.server.level.ServerPlayer);
+    Code:
+         0: aload_0
+         1: getfield      #13                 // Field players:Ljava/util/Set;
+         4: aload_1
+         5: invokeinterface #147,  2          // InterfaceMethod java/util/Set.remove:(Ljava/lang/Object;)Z
+        10: ifeq          34
+        13: aload_0
+        14: getfield      #28                 // Field visible:Z
+        17: ifeq          34
+        20: aload_1
+        21: getfield      #129                // Field net/minecraft/server/level/ServerPlayer.connection:Lnet/minecraft/server/network/ServerGamePacketListenerImpl;
+        24: aload_0
+        25: invokevirtual #150                // Method getId:()Ljava/util/UUID;
+        28: invokestatic  #154                // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket.createRemovePacket:(Ljava/util/UUID;)Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket;
+        31: invokevirtual #133                // Method net/minecraft/server/network/ServerGamePacketListenerImpl.send:(Lnet/minecraft/network/protocol/Packet;)V
+        34: return
+
+  public void removeAllPlayers();
+    Code:
+         0: aload_0
+         1: getfield      #13                 // Field players:Ljava/util/Set;
+         4: invokeinterface #158,  1          // InterfaceMethod java/util/Set.isEmpty:()Z
+         9: ifne          50
+        12: aload_0
+        13: getfield      #13                 // Field players:Ljava/util/Set;
+        16: invokestatic  #161                // Method com/google/common/collect/Lists.newArrayList:(Ljava/lang/Iterable;)Ljava/util/ArrayList;
+        19: invokevirtual #167                // Method java/util/ArrayList.iterator:()Ljava/util/Iterator;
+        22: astore_1
+        23: aload_1
+        24: invokeinterface #117,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+        29: ifeq          50
+        32: aload_1
+        33: invokeinterface #123,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+        38: checkcast     #127                // class net/minecraft/server/level/ServerPlayer
+        41: astore_2
+        42: aload_0
+        43: aload_2
+        44: invokevirtual #170                // Method removePlayer:(Lnet/minecraft/server/level/ServerPlayer;)V
+        47: goto          23
+        50: return
+
+  public boolean isVisible();
+    Code:
+         0: aload_0
+         1: getfield      #28                 // Field visible:Z
+         4: ireturn
+
+  public void setVisible(boolean);
+    Code:
+         0: iload_1
+         1: aload_0
+         2: getfield      #28                 // Field visible:Z
+         5: if_icmpeq     74
+         8: aload_0
+         9: iload_1
+        10: putfield      #28                 // Field visible:Z
+        13: aload_0
+        14: invokevirtual #40                 // Method setDirty:()V
+        17: aload_0
+        18: getfield      #13                 // Field players:Ljava/util/Set;
+        21: invokeinterface #111,  1          // InterfaceMethod java/util/Set.iterator:()Ljava/util/Iterator;
+        26: astore_2
+        27: aload_2
+        28: invokeinterface #117,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+        33: ifeq          74
+        36: aload_2
+        37: invokeinterface #123,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+        42: checkcast     #127                // class net/minecraft/server/level/ServerPlayer
+        45: astore_3
+        46: aload_3
+        47: getfield      #129                // Field net/minecraft/server/level/ServerPlayer.connection:Lnet/minecraft/server/network/ServerGamePacketListenerImpl;
+        50: iload_1
+        51: ifeq          61
+        54: aload_0
+        55: invokestatic  #143                // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket.createAddPacket:(Lnet/minecraft/world/BossEvent;)Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket;
+        58: goto          68
+        61: aload_0
+        62: invokevirtual #150                // Method getId:()Ljava/util/UUID;
+        65: invokestatic  #154                // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket.createRemovePacket:(Ljava/util/UUID;)Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket;
+        68: invokevirtual #133                // Method net/minecraft/server/network/ServerGamePacketListenerImpl.send:(Lnet/minecraft/network/protocol/Packet;)V
+        71: goto          27
+        74: return
+
+  public java.util.Collection<net.minecraft.server.level.ServerPlayer> getPlayers();
+    Code:
+         0: aload_0
+         1: getfield      #25                 // Field unmodifiablePlayers:Ljava/util/Set;
+         4: areturn
+
+  protected void setDirty();
+    Code:
+         0: return
+}
+
+===== ClientBossEvent ÂÄôË£ú =====
+ÉGÉâÅ[: ÉNÉâÉXÇ™å©Ç¬Ç©ÇËÇ‹ÇπÇÒ: net.minecraft.client.multiplayer.ClientBossEvent
+---
+Compiled from "BossHealthOverlay.java"
+public class net.minecraft.client.gui.components.BossHealthOverlay {
+  private static final int BAR_WIDTH;
+  private static final int BAR_HEIGHT;
+  private static final net.minecraft.resources.Identifier[] BAR_BACKGROUND_SPRITES;
+  private static final net.minecraft.resources.Identifier[] BAR_PROGRESS_SPRITES;
+  private static final net.minecraft.resources.Identifier[] OVERLAY_BACKGROUND_SPRITES;
+  private static final net.minecraft.resources.Identifier[] OVERLAY_PROGRESS_SPRITES;
+  private final net.minecraft.client.Minecraft minecraft;
+  private final java.util.Map<java.util.UUID, net.minecraft.client.gui.components.LerpingBossEvent> events;
+  public net.minecraft.client.gui.components.BossHealthOverlay(net.minecraft.client.Minecraft);
+  public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor);
+  private void extractBar(net.minecraft.client.gui.GuiGraphicsExtractor, int, int, net.minecraft.world.BossEvent);
+  private void extractBar(net.minecraft.client.gui.GuiGraphicsExtractor, int, int, net.minecraft.world.BossEvent, int, net.minecraft.resources.Identifier[], net.minecraft.resources.Identifier[]);
+  public void update(net.minecraft.network.protocol.game.ClientboundBossEventPacket);
+  public void reset();
+  public boolean shouldPlayMusic();
+  public boolean shouldDarkenScreen();
+  public boolean shouldCreateWorldFog();
+  static {};
+}
+
+===== ClientboundBossEventPacket =====
+Compiled from "ClientboundBossEventPacket.java"
+public class net.minecraft.network.protocol.game.ClientboundBossEventPacket implements net.minecraft.network.protocol.Packet<net.minecraft.network.protocol.game.ClientGamePacketListener> {
+  public static final net.minecraft.network.codec.StreamCodec<net.minecraft.network.RegistryFriendlyByteBuf, net.minecraft.network.protocol.game.ClientboundBossEventPacket> STREAM_CODEC;
+
+  private static final int FLAG_DARKEN;
+
+  private static final int FLAG_MUSIC;
+
+  private static final int FLAG_FOG;
+
+  private final java.util.UUID id;
+
+  private final net.minecraft.network.protocol.game.ClientboundBossEventPacket$Operation operation;
+
+  private static final net.minecraft.network.protocol.game.ClientboundBossEventPacket$Operation REMOVE_OPERATION;
+
+  private net.minecraft.network.protocol.game.ClientboundBossEventPacket(java.util.UUID, net.minecraft.network.protocol.game.ClientboundBossEventPacket$Operation);
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: aload_1
+         6: putfield      #7                  // Field id:Ljava/util/UUID;
+         9: aload_0
+        10: aload_2
+        11: putfield      #13                 // Field operation:Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;
+        14: return
+
+  private net.minecraft.network.protocol.game.ClientboundBossEventPacket(net.minecraft.network.RegistryFriendlyByteBuf);
+    Code:
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: aload_1
+         6: invokevirtual #17                 // Method net/minecraft/network/RegistryFriendlyByteBuf.readUUID:()Ljava/util/UUID;
+         9: putfield      #7                  // Field id:Ljava/util/UUID;
+        12: aload_1
+        13: ldc           #23                 // class net/minecraft/network/protocol/game/ClientboundBossEventPacket$OperationType
+        15: invokevirtual #25                 // Method net/minecraft/network/RegistryFriendlyByteBuf.readEnum:(Ljava/lang/Class;)Ljava/lang/Enum;
+        18: checkcast     #23                 // class net/minecraft/network/protocol/game/ClientboundBossEventPacket$OperationType
+        21: astore_2
+        22: aload_0
+        23: aload_2
+        24: getfield      #29                 // Field net/minecraft/network/protocol/game/ClientboundBossEventPacket$OperationType.reader:Lnet/minecraft/network/codec/StreamDecoder;
+        27: aload_1
+        28: invokeinterface #33,  2           // InterfaceMethod net/minecraft/network/codec/StreamDecoder.decode:(Ljava/lang/Object;)Ljava/lang/Object;
+        33: checkcast     #39                 // class net/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation
+        36: putfield      #13                 // Field operation:Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;
+        39: return
+
+  public static net.minecraft.network.protocol.game.ClientboundBossEventPacket createAddPacket(net.minecraft.world.BossEvent);
+    Code:
+         0: new           #8                  // class net/minecraft/network/protocol/game/ClientboundBossEventPacket
+         3: dup
+         4: aload_0
+         5: invokevirtual #41                 // Method net/minecraft/world/BossEvent.getId:()Ljava/util/UUID;
+         8: new           #46                 // class net/minecraft/network/protocol/game/ClientboundBossEventPacket$AddOperation
+        11: dup
+        12: aload_0
+        13: invokespecial #48                 // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket$AddOperation."<init>":(Lnet/minecraft/world/BossEvent;)V
+        16: invokespecial #51                 // Method "<init>":(Ljava/util/UUID;Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;)V
+        19: areturn
+
+  public static net.minecraft.network.protocol.game.ClientboundBossEventPacket createRemovePacket(java.util.UUID);
+    Code:
+         0: new           #8                  // class net/minecraft/network/protocol/game/ClientboundBossEventPacket
+         3: dup
+         4: aload_0
+         5: getstatic     #54                 // Field REMOVE_OPERATION:Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;
+         8: invokespecial #51                 // Method "<init>":(Ljava/util/UUID;Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;)V
+        11: areturn
+
+  public static net.minecraft.network.protocol.game.ClientboundBossEventPacket createUpdateProgressPacket(net.minecraft.world.BossEvent);
+    Code:
+         0: new           #8                  // class net/minecraft/network/protocol/game/ClientboundBossEventPacket
+         3: dup
+         4: aload_0
+         5: invokevirtual #41                 // Method net/minecraft/world/BossEvent.getId:()Ljava/util/UUID;
+         8: new           #57                 // class net/minecraft/network/protocol/game/ClientboundBossEventPacket$UpdateProgressOperation
+        11: dup
+        12: aload_0
+        13: invokevirtual #59                 // Method net/minecraft/world/BossEvent.getProgress:()F
+        16: invokespecial #63                 // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket$UpdateProgressOperation."<init>":(F)V
+        19: invokespecial #51                 // Method "<init>":(Ljava/util/UUID;Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;)V
+        22: areturn
+
+  public static net.minecraft.network.protocol.game.ClientboundBossEventPacket createUpdateNamePacket(net.minecraft.world.BossEvent);
+    Code:
+         0: new           #8                  // class net/minecraft/network/protocol/game/ClientboundBossEventPacket
+         3: dup
+         4: aload_0
+         5: invokevirtual #41                 // Method net/minecraft/world/BossEvent.getId:()Ljava/util/UUID;
+         8: new           #66                 // class net/minecraft/network/protocol/game/ClientboundBossEventPacket$UpdateNameOperation
+        11: dup
+        12: aload_0
+        13: invokevirtual #68                 // Method net/minecraft/world/BossEvent.getName:()Lnet/minecraft/network/chat/Component;
+        16: invokespecial #72                 // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket$UpdateNameOperation."<init>":(Lnet/minecraft/network/chat/Component;)V
+        19: invokespecial #51                 // Method "<init>":(Ljava/util/UUID;Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;)V
+        22: areturn
+
+  public static net.minecraft.network.protocol.game.ClientboundBossEventPacket createUpdateStylePacket(net.minecraft.world.BossEvent);
+    Code:
+         0: new           #8                  // class net/minecraft/network/protocol/game/ClientboundBossEventPacket
+         3: dup
+         4: aload_0
+         5: invokevirtual #41                 // Method net/minecraft/world/BossEvent.getId:()Ljava/util/UUID;
+         8: new           #75                 // class net/minecraft/network/protocol/game/ClientboundBossEventPacket$UpdateStyleOperation
+        11: dup
+        12: aload_0
+        13: invokevirtual #77                 // Method net/minecraft/world/BossEvent.getColor:()Lnet/minecraft/world/BossEvent$BossBarColor;
+        16: aload_0
+        17: invokevirtual #81                 // Method net/minecraft/world/BossEvent.getOverlay:()Lnet/minecraft/world/BossEvent$BossBarOverlay;
+        20: invokespecial #85                 // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket$UpdateStyleOperation."<init>":(Lnet/minecraft/world/BossEvent$BossBarColor;Lnet/minecraft/world/BossEvent$BossBarOverlay;)V
+        23: invokespecial #51                 // Method "<init>":(Ljava/util/UUID;Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;)V
+        26: areturn
+
+  public static net.minecraft.network.protocol.game.ClientboundBossEventPacket createUpdatePropertiesPacket(net.minecraft.world.BossEvent);
+    Code:
+         0: new           #8                  // class net/minecraft/network/protocol/game/ClientboundBossEventPacket
+         3: dup
+         4: aload_0
+         5: invokevirtual #41                 // Method net/minecraft/world/BossEvent.getId:()Ljava/util/UUID;
+         8: new           #88                 // class net/minecraft/network/protocol/game/ClientboundBossEventPacket$UpdatePropertiesOperation
+        11: dup
+        12: aload_0
+        13: invokevirtual #90                 // Method net/minecraft/world/BossEvent.shouldDarkenScreen:()Z
+        16: aload_0
+        17: invokevirtual #94                 // Method net/minecraft/world/BossEvent.shouldPlayBossMusic:()Z
+        20: aload_0
+        21: invokevirtual #97                 // Method net/minecraft/world/BossEvent.shouldCreateWorldFog:()Z
+        24: invokespecial #100                // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket$UpdatePropertiesOperation."<init>":(ZZZ)V
+        27: invokespecial #51                 // Method "<init>":(Ljava/util/UUID;Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;)V
+        30: areturn
+
+  private void write(net.minecraft.network.RegistryFriendlyByteBuf);
+    Code:
+         0: aload_1
+         1: aload_0
+         2: getfield      #7                  // Field id:Ljava/util/UUID;
+         5: invokevirtual #103                // Method net/minecraft/network/RegistryFriendlyByteBuf.writeUUID:(Ljava/util/UUID;)Lnet/minecraft/network/FriendlyByteBuf;
+         8: pop
+         9: aload_1
+        10: aload_0
+        11: getfield      #13                 // Field operation:Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;
+        14: invokeinterface #107,  1          // InterfaceMethod net/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation.getType:()Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$OperationType;
+        19: invokevirtual #111                // Method net/minecraft/network/RegistryFriendlyByteBuf.writeEnum:(Ljava/lang/Enum;)Lnet/minecraft/network/FriendlyByteBuf;
+        22: pop
+        23: aload_0
+        24: getfield      #13                 // Field operation:Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;
+        27: aload_1
+        28: invokeinterface #115,  2          // InterfaceMethod net/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation.write:(Lnet/minecraft/network/RegistryFriendlyByteBuf;)V
+        33: return
+
+  private static int encodeProperties(boolean, boolean, boolean);
+    Code:
+         0: iconst_0
+         1: istore_3
+         2: iload_0
+         3: ifeq          10
+         6: iload_3
+         7: iconst_1
+         8: ior
+         9: istore_3
+        10: iload_1
+        11: ifeq          18
+        14: iload_3
+        15: iconst_2
+        16: ior
+        17: istore_3
+        18: iload_2
+        19: ifeq          26
+        22: iload_3
+        23: iconst_4
+        24: ior
+        25: istore_3
+        26: iload_3
+        27: ireturn
+
+  public net.minecraft.network.protocol.PacketType<net.minecraft.network.protocol.game.ClientboundBossEventPacket> type();
+    Code:
+         0: getstatic     #119                // Field net/minecraft/network/protocol/game/GamePacketTypes.CLIENTBOUND_BOSS_EVENT:Lnet/minecraft/network/protocol/PacketType;
+         3: areturn
+
+  public void handle(net.minecraft.network.protocol.game.ClientGamePacketListener);
+    Code:
+         0: aload_1
+         1: aload_0
+         2: invokeinterface #125,  2          // InterfaceMethod net/minecraft/network/protocol/game/ClientGamePacketListener.handleBossUpdate:(Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket;)V
+         7: return
+
+  public void dispatch(net.minecraft.network.protocol.game.ClientboundBossEventPacket$Handler);
+    Code:
+         0: aload_0
+         1: getfield      #13                 // Field operation:Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;
+         4: aload_0
+         5: getfield      #7                  // Field id:Ljava/util/UUID;
+         8: aload_1
+         9: invokeinterface #131,  3          // InterfaceMethod net/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation.dispatch:(Ljava/util/UUID;Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Handler;)V
+        14: return
+
+  public void handle(net.minecraft.network.PacketListener);
+    Code:
+         0: aload_0
+         1: aload_1
+         2: checkcast     #126                // class net/minecraft/network/protocol/game/ClientGamePacketListener
+         5: invokevirtual #135                // Method handle:(Lnet/minecraft/network/protocol/game/ClientGamePacketListener;)V
+         8: return
+
+  static {};
+    Code:
+         0: invokedynamic #139,  0            // InvokeDynamic #0:encode:()Lnet/minecraft/network/codec/StreamMemberEncoder;
+         5: invokedynamic #143,  0            // InvokeDynamic #1:decode:()Lnet/minecraft/network/codec/StreamDecoder;
+        10: invokestatic  #146                // InterfaceMethod net/minecraft/network/protocol/Packet.codec:(Lnet/minecraft/network/codec/StreamMemberEncoder;Lnet/minecraft/network/codec/StreamDecoder;)Lnet/minecraft/network/codec/StreamCodec;
+        13: putstatic     #152                // Field STREAM_CODEC:Lnet/minecraft/network/codec/StreamCodec;
+        16: new           #156                // class net/minecraft/network/protocol/game/ClientboundBossEventPacket$1
+        19: dup
+        20: invokespecial #158                // Method net/minecraft/network/protocol/game/ClientboundBossEventPacket$1."<init>":()V
+        23: putstatic     #54                 // Field REMOVE_OPERATION:Lnet/minecraft/network/protocol/game/ClientboundBossEventPacket$Operation;
+        26: return
+}
+
+===== ClientboundBossEventPacket ÂÜÖÈÉ®„ÇØ„É©„Çπ =====
+ÉGÉâÅ[: ÉNÉâÉXÇ™å©Ç¬Ç©ÇËÇ‹ÇπÇÒ: net.minecraft.network.protocol.game.ClientboundBossEventPacket$Action
+---
+Compiled from "ClientboundBossEventPacket.java"
+class net.minecraft.network.protocol.game.ClientboundBossEventPacket$AddOperation implements net.minecraft.network.protocol.game.ClientboundBossEventPacket$Operation {
+  private final net.minecraft.network.chat.Component name;
+  private final float progress;
+  private final net.minecraft.world.BossEvent$BossBarColor color;
+  private final net.minecraft.world.BossEvent$BossBarOverlay overlay;
+  private final boolean darkenScreen;
+  private final boolean playMusic;
+  private final boolean createWorldFog;
+  private net.minecraft.network.protocol.game.ClientboundBossEventPacket$AddOperation(net.minecraft.world.BossEvent);
+  private net.minecraft.network.protocol.game.ClientboundBossEventPacket$AddOperation(net.minecraft.network.RegistryFriendlyByteBuf);
+  public net.minecraft.network.protocol.game.ClientboundBossEventPacket$OperationType getType();
+  public void dispatch(java.util.UUID, net.minecraft.network.protocol.game.ClientboundBossEventPacket$Handler);
+  public void write(net.minecraft.network.RegistryFriendlyByteBuf);
+}
+---
+Compiled from "ClientboundBossEventPacket.java"
+final class net.minecraft.network.protocol.game.ClientboundBossEventPacket$UpdateNameOperation extends java.lang.Record implements net.minecraft.network.protocol.game.ClientboundBossEventPacket$Operation {
+  private final net.minecraft.network.chat.Component name;
+  private net.minecraft.network.protocol.game.ClientboundBossEventPacket$UpdateNameOperation(net.minecraft.network.RegistryFriendlyByteBuf);
+  private net.minecraft.network.protocol.game.ClientboundBossEventPacket$UpdateNameOperation(net.minecraft.network.chat.Component);
+  public net.minecraft.network.protocol.game.ClientboundBossEventPacket$OperationType getType();
+  public void dispatch(java.util.UUID, net.minecraft.network.protocol.game.ClientboundBossEventPacket$Handler);
+  public void write(net.minecraft.network.RegistryFriendlyByteBuf);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public net.minecraft.network.chat.Component name();
+}
+
+===== ClientPacketListener „ÅÆ bossÈñ¢ÈÄ£„É°„ÇΩ„ÉÉ„Éâ =====
+  public void handleBossUpdate(net.minecraft.network.protocol.game.ClientboundBossEventPacket);
+
+===== EnderDragon „ÅÆ bossÈñ¢ÈÄ£„Éï„Ç£„Éº„É´„Éâ/„É°„ÇΩ„ÉÉ„Éâ =====
+public class net.minecraft.world.entity.boss.enderdragon.EnderDragon extends net.minecraft.world.entity.Mob implements net.minecraft.world.entity.monster.Enemy {
+  private static final org.slf4j.Logger LOGGER;
+
+  public static final net.minecraft.network.syncher.EntityDataAccessor<java.lang.Integer> DATA_PHASE;
+--
+  public final net.minecraft.world.entity.boss.enderdragon.DragonFlightHistory flightHistory;
+
+  private final net.minecraft.world.entity.boss.enderdragon.EnderDragonPart[] subEntities;
+
+  public final net.minecraft.world.entity.boss.enderdragon.EnderDragonPart head;
+
+  private final net.minecraft.world.entity.boss.enderdragon.EnderDragonPart neck;
+
+  private final net.minecraft.world.entity.boss.enderdragon.EnderDragonPart body;
+
+  private final net.minecraft.world.entity.boss.enderdragon.EnderDragonPart tail1;
+
+  private final net.minecraft.world.entity.boss.enderdragon.EnderDragonPart tail2;
+
+  private final net.minecraft.world.entity.boss.enderdragon.EnderDragonPart tail3;
+
+  private final net.minecraft.world.entity.boss.enderdragon.EnderDragonPart wing1;
+
+  private final net.minecraft.world.entity.boss.enderdragon.EnderDragonPart wing2;
+
+  public float oFlapTime;
+
+--
+  public net.minecraft.world.entity.boss.enderdragon.EndCrystal nearestCrystal;
+
+  private net.minecraft.world.level.dimension.end.EnderDragonFight dragonFight;
+
+--
+  private final net.minecraft.world.entity.boss.enderdragon.phases.EnderDragonPhaseManager phaseManager;
+
+  private int growlTime;
+
+--
+  public net.minecraft.world.entity.boss.enderdragon.EnderDragon(net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.boss.enderdragon.EnderDragon>, net.minecraft.world.level.Level);
+    Code:
+         0: aload_0
+         1: getstatic     #3                  // Field net/minecraft/world/entity/EntityTypes.ENDER_DRAGON:Lnet/minecraft/world/entity/EntityType;
+--
+         9: new           #15                 // class net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory
+        12: dup
+        13: invokespecial #17                 // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory."<init>":()V
+        16: putfield      #20                 // Field flightHistory:Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory;
+        19: aload_0
+        20: iconst_0
+        21: putfield      #26                 // Field dragonDeathTime:I
+--
+        66: new           #59                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragonPart
+        69: dup
+        70: aload_0
+        71: ldc           #61                 // String head
+--
+        75: invokespecial #63                 // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart."<init>":(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;Ljava/lang/String;FF)V
+        78: putfield      #66                 // Field head:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+        81: aload_0
+        82: new           #59                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragonPart
+        85: dup
+        86: aload_0
+        87: ldc           #69                 // String neck
+--
+        93: invokespecial #63                 // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart."<init>":(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;Ljava/lang/String;FF)V
+        96: putfield      #72                 // Field neck:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+        99: aload_0
+       100: new           #59                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragonPart
+       103: dup
+       104: aload_0
+       105: ldc           #74                 // String body
+--
+       111: invokespecial #63                 // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart."<init>":(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;Ljava/lang/String;FF)V
+       114: putfield      #77                 // Field body:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       117: aload_0
+       118: new           #59                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragonPart
+       121: dup
+       122: aload_0
+       123: ldc           #79                 // String tail
+--
+       127: invokespecial #63                 // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart."<init>":(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;Ljava/lang/String;FF)V
+       130: putfield      #81                 // Field tail1:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       133: aload_0
+       134: new           #59                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragonPart
+       137: dup
+       138: aload_0
+       139: ldc           #79                 // String tail
+--
+       143: invokespecial #63                 // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart."<init>":(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;Ljava/lang/String;FF)V
+       146: putfield      #84                 // Field tail2:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       149: aload_0
+       150: new           #59                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragonPart
+       153: dup
+       154: aload_0
+       155: ldc           #79                 // String tail
+--
+       159: invokespecial #63                 // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart."<init>":(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;Ljava/lang/String;FF)V
+       162: putfield      #87                 // Field tail3:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       165: aload_0
+       166: new           #59                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragonPart
+       169: dup
+       170: aload_0
+       171: ldc           #90                 // String wing
+--
+       176: invokespecial #63                 // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart."<init>":(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;Ljava/lang/String;FF)V
+       179: putfield      #93                 // Field wing1:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       182: aload_0
+       183: new           #59                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragonPart
+       186: dup
+       187: aload_0
+       188: ldc           #90                 // String wing
+--
+       193: invokespecial #63                 // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart."<init>":(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;Ljava/lang/String;FF)V
+       196: putfield      #96                 // Field wing2:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       199: aload_0
+       200: bipush        8
+       202: anewarray     #59                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragonPart
+       205: dup
+       206: iconst_0
+       207: aload_0
+       208: getfield      #66                 // Field head:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       211: aastore
+       212: dup
+       213: iconst_1
+--
+       215: getfield      #72                 // Field neck:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       218: aastore
+       219: dup
+       220: iconst_2
+--
+       222: getfield      #77                 // Field body:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       225: aastore
+       226: dup
+       227: iconst_3
+--
+       229: getfield      #81                 // Field tail1:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       232: aastore
+       233: dup
+       234: iconst_4
+--
+       236: getfield      #84                 // Field tail2:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       239: aastore
+       240: dup
+       241: iconst_5
+--
+       243: getfield      #87                 // Field tail3:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       246: aastore
+       247: dup
+       248: bipush        6
+--
+       251: getfield      #93                 // Field wing1:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       254: aastore
+       255: dup
+       256: bipush        7
+--
+       259: getfield      #96                 // Field wing2:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       262: aastore
+       263: putfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       266: aload_0
+       267: aload_0
+       268: invokevirtual #103                // Method getMaxHealth:()F
+--
+       280: new           #115                // class net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager
+       283: dup
+       284: aload_0
+       285: invokespecial #117                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager."<init>":(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;)V
+       288: putfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+       291: return
+
+  public void setDragonFight(net.minecraft.world.level.dimension.end.EnderDragonFight);
+--
+         9: getstatic     #222                // Field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.HOVERING:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        12: invokevirtual #228                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.getId:()I
+        15: invokestatic  #232                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+        18: invokevirtual #238                // Method net/minecraft/network/syncher/SynchedEntityData$Builder.define:(Lnet/minecraft/network/syncher/EntityDataAccessor;Ljava/lang/Object;)Lnet/minecraft/network/syncher/SynchedEntityData$Builder;
+        21: pop
+--
+        30: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+        33: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+        36: invokeinterface #254,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.isSitting:()Z
+        41: ifne          123
+        44: aload_0
+        45: dup
+--
+       322: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+       325: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+       328: invokeinterface #254,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.isSitting:()Z
+       333: ifeq          351
+       336: aload_0
+       337: dup
+--
+       412: getfield      #20                 // Field flightHistory:Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory;
+       415: aload_0
+       416: invokevirtual #183                // Method getY:()D
+       419: aload_0
+--
+       423: invokevirtual #346                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory.record:(DF)V
+       426: aload_0
+       427: invokevirtual #166                // Method level:()Lnet/minecraft/world/level/Level;
+       430: astore        4
+--
+       457: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+       460: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+       463: invokeinterface #359,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.doClientTick:()V
+       468: goto          995
+       471: aload_0
+       472: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+       475: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+       478: astore        4
+       480: aload         4
+       482: aload_3
+       483: invokeinterface #362,  2          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.doServerTick:(Lnet/minecraft/server/level/ServerLevel;)V
+       488: aload_0
+       489: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+       492: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+       495: aload         4
+       497: if_acmpeq     517
+       500: aload_0
+       501: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+       504: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+       507: astore        4
+       509: aload         4
+       511: aload_3
+       512: invokeinterface #362,  2          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.doServerTick:(Lnet/minecraft/server/level/ServerLevel;)V
+       517: aload         4
+       519: invokeinterface #366,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.getFlyTargetLocation:()Lnet/minecraft/world/phys/Vec3;
+       524: astore        5
+       526: aload         5
+       528: ifnull        995
+--
+       588: invokeinterface #375,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.getFlySpeed:()F
+       593: fstore        14
+       595: dload         6
+       597: dload         6
+--
+       834: invokeinterface #435,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.getTurnSpeed:()F
+       839: fmul
+       840: fadd
+       841: putfield      #432                // Field yRotA:F
+--
+      1018: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1021: arraylength
+      1022: anewarray     #314                // class net/minecraft/world/phys/Vec3
+      1025: astore_3
+--
+      1032: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1035: arraylength
+      1036: if_icmpge     1086
+      1039: aload_3
+--
+      1047: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1050: iload         4
+      1052: aaload
+      1053: invokevirtual #476                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getX:()D
+      1056: aload_0
+      1057: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1060: iload         4
+      1062: aaload
+      1063: invokevirtual #477                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getY:()D
+      1066: aload_0
+      1067: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1070: iload         4
+      1072: aaload
+      1073: invokevirtual #478                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getZ:()D
+      1076: invokespecial #405                // Method net/minecraft/world/phys/Vec3."<init>":(DDD)V
+      1079: aastore
+      1080: iinc          4, 1
+--
+      1087: getfield      #20                 // Field flightHistory:Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory;
+      1090: iconst_5
+      1091: invokevirtual #479                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory.get:(I)Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample;
+      1094: invokevirtual #483                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample.y:()D
+      1097: aload_0
+      1098: getfield      #20                 // Field flightHistory:Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory;
+      1101: bipush        10
+      1103: invokevirtual #479                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory.get:(I)Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample;
+      1106: invokevirtual #483                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample.y:()D
+      1109: dsub
+      1110: d2f
+      1111: ldc_w         #318                // float 10.0f
+--
+      1165: getfield      #77                 // Field body:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1168: fload         8
+      1170: ldc_w         #291                // float 0.5f
+      1173: fmul
+--
+      1184: invokevirtual #487                // Method tickPart:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;DDD)V
+      1187: aload_0
+      1188: aload_0
+      1189: getfield      #93                 // Field wing1:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1192: fload         9
+      1194: ldc_w         #491                // float 4.5f
+      1197: fmul
+--
+      1209: invokevirtual #487                // Method tickPart:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;DDD)V
+      1212: aload_0
+      1213: aload_0
+      1214: getfield      #96                 // Field wing2:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1217: fload         9
+      1219: ldc_w         #492                // float -4.5f
+      1222: fmul
+--
+      1234: invokevirtual #487                // Method tickPart:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;DDD)V
+      1237: aload_0
+      1238: invokevirtual #166                // Method level:()Lnet/minecraft/world/level/Level;
+      1241: astore        11
+--
+      1272: getfield      #93                 // Field wing1:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1275: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+      1278: ldc2_w        #500                // double 4.0d
+      1281: ldc2_w        #299                // double 2.0d
+      1284: ldc2_w        #500                // double 4.0d
+--
+      1314: getfield      #96                 // Field wing2:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1317: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+      1320: ldc2_w        #500                // double 4.0d
+      1323: ldc2_w        #299                // double 2.0d
+      1326: ldc2_w        #500                // double 4.0d
+--
+      1356: getfield      #66                 // Field head:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1359: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+      1362: dconst_1
+      1363: invokevirtual #526                // Method net/minecraft/world/phys/AABB.inflate:(D)Lnet/minecraft/world/phys/AABB;
+      1366: getstatic     #512                // Field net/minecraft/world/entity/EntitySelector.NO_CREATIVE_OR_SPECTATOR:Ljava/util/function/Predicate;
+--
+      1382: getfield      #72                 // Field neck:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1385: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+      1388: dconst_1
+      1389: invokevirtual #526                // Method net/minecraft/world/phys/AABB.inflate:(D)Lnet/minecraft/world/phys/AABB;
+      1392: getstatic     #512                // Field net/minecraft/world/entity/EntitySelector.NO_CREATIVE_OR_SPECTATOR:Ljava/util/function/Predicate;
+--
+      1455: getfield      #66                 // Field head:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1458: fload         10
+      1460: ldc_w         #536                // float 6.5f
+      1463: fmul
+--
+      1489: invokevirtual #487                // Method tickPart:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;DDD)V
+      1492: aload_0
+      1493: aload_0
+      1494: getfield      #72                 // Field neck:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1497: fload         10
+      1499: ldc_w         #537                // float 5.5f
+      1502: fmul
+--
+      1528: invokevirtual #487                // Method tickPart:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;DDD)V
+      1531: aload_0
+      1532: getfield      #20                 // Field flightHistory:Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory;
+      1535: iconst_5
+      1536: invokevirtual #479                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory.get:(I)Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample;
+      1539: astore        13
+      1541: iconst_0
+      1542: istore        14
+--
+      1559: getfield      #81                 // Field tail1:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1562: astore        15
+      1564: iload         14
+      1566: iconst_1
+--
+      1571: getfield      #84                 // Field tail2:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1574: astore        15
+      1576: iload         14
+      1578: iconst_2
+--
+      1583: getfield      #87                 // Field tail3:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1586: astore        15
+      1588: aload_0
+      1589: getfield      #20                 // Field flightHistory:Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory;
+      1592: bipush        12
+      1594: iload         14
+      1596: iconst_2
+--
+      1599: invokevirtual #479                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory.get:(I)Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample;
+      1602: astore        16
+      1604: aload_0
+      1605: invokevirtual #333                // Method getYRot:()F
+--
+      1615: invokevirtual #538                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample.yRot:()F
+      1618: aload         13
+      1620: invokevirtual #538                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample.yRot:()F
+      1623: fsub
+      1624: f2d
+      1625: invokevirtual #541                // Method rotWrap:(D)F
+--
+      1687: invokevirtual #483                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample.y:()D
+      1690: aload         13
+      1692: invokevirtual #483                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample.y:()D
+      1695: dsub
+      1696: fload         21
+      1698: ldc_w         #412                // float 1.5f
+--
+      1727: invokevirtual #487                // Method tickPart:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;DDD)V
+      1730: iinc          14, 1
+      1733: goto          1544
+      1736: aload_0
+--
+      1762: getfield      #66                 // Field head:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1765: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+      1768: invokevirtual #546                // Method checkWalls:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/phys/AABB;)Z
+      1771: aload_0
+      1772: aload         14
+--
+      1775: getfield      #72                 // Field neck:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1778: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+      1781: invokevirtual #546                // Method checkWalls:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/phys/AABB;)Z
+      1784: ior
+      1785: aload_0
+--
+      1789: getfield      #77                 // Field body:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1792: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+      1795: invokevirtual #546                // Method checkWalls:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/phys/AABB;)Z
+      1798: ior
+      1799: putfield      #330                // Field inWall:Z
+--
+      1814: invokevirtual #550                // Method net/minecraft/world/level/dimension/end/EnderDragonFight.updateDragon:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;)V
+      1817: iconst_0
+      1818: istore        14
+      1820: iload         14
+--
+      1823: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1826: arraylength
+      1827: if_icmpge     1938
+      1830: aload_0
+      1831: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1834: iload         14
+      1836: aaload
+      1837: aload_3
+--
+      1844: putfield      #553                // Field net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.xo:D
+      1847: aload_0
+      1848: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1851: iload         14
+      1853: aaload
+      1854: aload_3
+--
+      1861: putfield      #556                // Field net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.yo:D
+      1864: aload_0
+      1865: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1868: iload         14
+      1870: aaload
+      1871: aload_3
+--
+      1878: putfield      #559                // Field net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.zo:D
+      1881: aload_0
+      1882: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1885: iload         14
+      1887: aaload
+      1888: aload_3
+--
+      1895: putfield      #562                // Field net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.xOld:D
+      1898: aload_0
+      1899: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1902: iload         14
+      1904: aaload
+      1905: aload_3
+--
+      1912: putfield      #565                // Field net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.yOld:D
+      1915: aload_0
+      1916: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+      1919: iload         14
+      1921: aaload
+      1922: aload_3
+--
+      1929: putfield      #568                // Field net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.zOld:D
+      1932: iinc          14, 1
+      1935: goto          1820
+      1938: return
+--
+  private void tickPart(net.minecraft.world.entity.boss.enderdragon.EnderDragonPart, double, double, double);
+    Code:
+         0: aload_1
+         1: aload_0
+--
+        21: invokevirtual #571                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.setPos:(DDD)V
+        24: return
+
+  private float getHeadYOffset();
+--
+         1: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+         4: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+         7: invokeinterface #254,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.isSitting:()Z
+        12: ifeq          19
+        15: ldc_w         #574                // float -1.0f
+        18: freturn
+--
+        20: getfield      #20                 // Field flightHistory:Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory;
+        23: iconst_5
+        24: invokevirtual #479                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory.get:(I)Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample;
+        27: astore_1
+        28: aload_0
+        29: getfield      #20                 // Field flightHistory:Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory;
+        32: iconst_0
+        33: invokevirtual #479                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory.get:(I)Lnet/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample;
+        36: astore_2
+        37: aload_1
+        38: invokevirtual #483                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample.y:()D
+        41: aload_2
+        42: invokevirtual #483                // Method net/minecraft/world/entity/boss/enderdragon/DragonFlightHistory$Sample.y:()D
+        45: dsub
+        46: d2f
+        47: freturn
+--
+         1: getfield      #575                // Field nearestCrystal:Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;
+         4: ifnull        57
+         7: aload_0
+         8: getfield      #575                // Field nearestCrystal:Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;
+        11: invokevirtual #579                // Method net/minecraft/world/entity/boss/enderdragon/EndCrystal.isRemoved:()Z
+        14: ifeq          25
+        17: aload_0
+        18: aconst_null
+        19: putfield      #575                // Field nearestCrystal:Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;
+        22: goto          57
+        25: aload_0
+        26: getfield      #584                // Field tickCount:I
+--
+        75: ldc_w         #580                // class net/minecraft/world/entity/boss/enderdragon/EndCrystal
+        78: aload_0
+        79: invokevirtual #587                // Method getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+        82: ldc2_w        #588                // double 32.0d
+--
+       123: checkcast     #580                // class net/minecraft/world/entity/boss/enderdragon/EndCrystal
+       126: astore        6
+       128: aload         6
+       130: aload_0
+       131: invokevirtual #613                // Method net/minecraft/world/entity/boss/enderdragon/EndCrystal.distanceToSqr:(Lnet/minecraft/world/entity/Entity;)D
+       134: dstore        7
+       136: dload         7
+       138: dload_3
+--
+       154: putfield      #575                // Field nearestCrystal:Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;
+       157: return
+
+  private void knockBack(net.minecraft.server.level.ServerLevel, java.util.List<net.minecraft.world.entity.Entity>);
+--
+         1: getfield      #77                 // Field body:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+         4: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+         7: getfield      #617                // Field net/minecraft/world/phys/AABB.minX:D
+        10: aload_0
+        11: getfield      #77                 // Field body:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+        14: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+        17: getfield      #620                // Field net/minecraft/world/phys/AABB.maxX:D
+        20: dadd
+        21: ldc2_w        #299                // double 2.0d
+--
+        27: getfield      #77                 // Field body:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+        30: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+        33: getfield      #623                // Field net/minecraft/world/phys/AABB.minZ:D
+        36: aload_0
+        37: getfield      #77                 // Field body:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+        40: invokevirtual #496                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.getBoundingBox:()Lnet/minecraft/world/phys/AABB;
+        43: getfield      #626                // Field net/minecraft/world/phys/AABB.maxZ:D
+        46: dadd
+        47: ldc2_w        #299                // double 2.0d
+--
+       163: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+       166: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+       169: invokeinterface #254,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.isSitting:()Z
+       174: ifne          221
+       177: aload         9
+       179: invokevirtual #644                // Method net/minecraft/world/entity/LivingEntity.getLastHurtByMobTimestamp:()I
+--
+  public boolean hurt(net.minecraft.server.level.ServerLevel, net.minecraft.world.entity.boss.enderdragon.EnderDragonPart, net.minecraft.world.damagesource.DamageSource, float);
+    Code:
+         0: aload_0
+         1: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+         4: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+         7: invokeinterface #733,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.getPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        12: getstatic     #737                // Field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.DYING:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        15: if_acmpne     20
+        18: iconst_0
+        19: ireturn
+--
+        21: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+        24: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+        27: aload_3
+        28: fload         4
+        30: invokeinterface #740,  3          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.onHurt:(Lnet/minecraft/world/damagesource/DamageSource;F)F
+        35: fstore        4
+        37: aload_2
+        38: aload_0
+        39: getfield      #66                 // Field head:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+        42: if_acmpeq     59
+        45: fload         4
+        47: ldc           #92                 // float 4.0f
+--
+       105: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+       108: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+       111: invokeinterface #254,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.isSitting:()Z
+       116: ifeq          166
+       119: aload_0
+       120: aload_0
+--
+       157: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+       160: getstatic     #769                // Field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.TAKEOFF:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+       163: invokevirtual #772                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.setPhase:(Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;)V
+       166: iconst_1
+       167: ireturn
+
+--
+         3: getfield      #77                 // Field body:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+         6: aload_2
+         7: fload_3
+         8: invokevirtual #776                // Method hurt:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;Lnet/minecraft/world/damagesource/DamageSource;F)Z
+        11: ireturn
+
+  protected void reallyHurt(net.minecraft.server.level.ServerLevel, net.minecraft.world.damagesource.DamageSource, float);
+--
+         1: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+         4: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+         7: invokeinterface #254,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.isSitting:()Z
+        12: ifne          30
+        15: aload_0
+        16: fconst_1
+--
+        21: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+        24: getstatic     #737                // Field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.DYING:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        27: invokevirtual #772                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.setPhase:(Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;)V
+        30: return
+
+  public void knockback(double, double, double, net.minecraft.world.damagesource.DamageSource, float);
+--
+         1: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+         4: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+         7: invokeinterface #254,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.isSitting:()Z
+        12: ifeq          16
+        15: return
+        16: aload_0
+--
+        26: invokevirtual #550                // Method net/minecraft/world/level/dimension/end/EnderDragonFight.updateDragon:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;)V
+        29: aload_0
+        30: getfield      #124                // Field dragonFight:Lnet/minecraft/world/level/dimension/end/EnderDragonFight;
+        33: aload_0
+        34: invokevirtual #804                // Method net/minecraft/world/level/dimension/end/EnderDragonFight.setDragonKilled:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;)V
+        37: return
+
+  protected void tickDeath();
+--
+        12: invokevirtual #550                // Method net/minecraft/world/level/dimension/end/EnderDragonFight.updateDragon:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;)V
+        15: aload_0
+        16: dup
+        17: getfield      #26                 // Field dragonDeathTime:I
+--
+       282: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+       285: astore_3
+       286: aload_3
+       287: arraylength
+--
+       308: invokevirtual #840                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.setOldPosAndRot:()V
+       311: aload         6
+       313: aload         6
+       315: invokevirtual #843                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.position:()Lnet/minecraft/world/phys/Vec3;
+       318: aload_2
+       319: invokevirtual #844                // Method net/minecraft/world/phys/Vec3.add:(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;
+       322: invokevirtual #847                // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.setPos:(Lnet/minecraft/world/phys/Vec3;)V
+       325: iinc          5, 1
+       328: goto          293
+       331: aload_0
+--
+       409: invokevirtual #804                // Method net/minecraft/world/level/dimension/end/EnderDragonFight.setDragonKilled:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;)V
+       412: aload_0
+       413: getstatic     #784                // Field net/minecraft/world/entity/Entity$RemovalReason.KILLED:Lnet/minecraft/world/entity/Entity$RemovalReason;
+       416: invokevirtual #790                // Method remove:(Lnet/minecraft/world/entity/Entity$RemovalReason;)V
+--
+        10: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+        13: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+        16: invokeinterface #733,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.getPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        21: invokevirtual #228                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.getId:()I
+        24: invokeinterface #991,  3          // InterfaceMethod net/minecraft/world/level/storage/ValueOutput.putInt:(Ljava/lang/String;I)V
+        29: aload_1
+        30: ldc_w         #997                // String DragonDeathTime
+--
+        15: invokedynamic #1015,  0           // InvokeDynamic #0:accept:(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;)Ljava/util/function/Consumer;
+        20: invokevirtual #1019               // Method java/util/Optional.ifPresent:(Ljava/util/function/Consumer;)V
+        23: aload_0
+        24: aload_1
+--
+  public net.minecraft.world.entity.boss.enderdragon.EnderDragonPart[] getSubEntities();
+    Code:
+         0: aload_0
+         1: getfield      #99                 // Field subEntities:[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+         4: areturn
+
+  public boolean isPickable();
+--
+         1: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+         4: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+         7: astore_2
+         8: aload_2
+         9: invokeinterface #733,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.getPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        14: astore_3
+        15: aload_3
+        16: getstatic     #1045               // Field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.LANDING:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        19: if_acmpeq     29
+        22: aload_3
+        23: getstatic     #769                // Field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.TAKEOFF:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        26: if_acmpne     119
+        29: aload_0
+        30: invokevirtual #166                // Method level:()Lnet/minecraft/world/level/Level;
+--
+       120: invokeinterface #254,  1          // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.isSitting:()Z
+       125: ifeq          162
+       128: aload_0
+       129: invokevirtual #1059               // Method getXRot:()F
+--
+  public void onCrystalDestroyed(net.minecraft.server.level.ServerLevel, net.minecraft.world.entity.boss.enderdragon.EndCrystal, net.minecraft.core.BlockPos, net.minecraft.world.damagesource.DamageSource);
+    Code:
+         0: aload         4
+         2: invokevirtual #747                // Method net/minecraft/world/damagesource/DamageSource.getEntity:()Lnet/minecraft/world/entity/Entity;
+--
+        55: getfield      #575                // Field nearestCrystal:Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;
+        58: if_acmpne     84
+        61: aload_0
+        62: aload_1
+--
+        64: getfield      #66                 // Field head:Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+        67: aload_0
+        68: invokevirtual #648                // Method damageSources:()Lnet/minecraft/world/damagesource/DamageSources;
+        71: aload_2
+--
+        80: invokevirtual #776                // Method hurt:(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;Lnet/minecraft/world/damagesource/DamageSource;F)Z
+        83: pop
+        84: aload_0
+        85: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+        88: invokevirtual #250                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.getCurrentPhase:()Lnet/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance;
+        91: aload_2
+        92: aload_3
+        93: aload         4
+--
+        97: invokeinterface #1086,  5         // InterfaceMethod net/minecraft/world/entity/boss/enderdragon/phases/DragonPhaseInstance.onCrystalDestroyed:(Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/damagesource/DamageSource;Lnet/minecraft/world/entity/player/Player;)V
+       102: return
+
+  public void onSyncedDataUpdated(net.minecraft.network.syncher.EntityDataAccessor<?>);
+--
+        21: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+        24: aload_0
+        25: invokevirtual #1093               // Method getEntityData:()Lnet/minecraft/network/syncher/SynchedEntityData;
+        28: getstatic     #218                // Field DATA_PHASE:Lnet/minecraft/network/syncher/EntityDataAccessor;
+--
+        40: invokestatic  #1105               // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.getById:(I)Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        43: invokevirtual #772                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.setPhase:(Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;)V
+        46: aload_0
+        47: aload_1
+        48: invokespecial #1109               // Method net/minecraft/world/entity/Mob.onSyncedDataUpdated:(Lnet/minecraft/network/syncher/EntityDataAccessor;)V
+--
+  public net.minecraft.world.entity.boss.enderdragon.phases.EnderDragonPhaseManager getPhaseManager();
+    Code:
+         0: aload_0
+         1: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+         4: areturn
+
+  public net.minecraft.world.level.dimension.end.EnderDragonFight getDragonFight();
+--
+         6: invokevirtual #1117               // Method getSubEntities:()[Lnet/minecraft/world/entity/boss/enderdragon/EnderDragonPart;
+         9: astore_2
+        10: iconst_0
+        11: istore_3
+--
+        29: invokevirtual #1124               // Method net/minecraft/world/entity/boss/enderdragon/EnderDragonPart.setId:(I)V
+        32: iinc          3, 1
+        35: goto          12
+        38: return
+--
+         1: getfield      #120                // Field phaseManager:Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager;
+         4: aload_1
+         5: invokevirtual #1102               // Method java/lang/Integer.intValue:()I
+         8: invokestatic  #1105               // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase.getById:(I)Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;
+        11: invokevirtual #772                // Method net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager.setPhase:(Lnet/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhase;)V
+        14: return
+
+  static {};
+--
+         6: ldc           #21                 // class net/minecraft/world/entity/boss/enderdragon/EnderDragon
+         8: getstatic     #1137               // Field net/minecraft/network/syncher/EntityDataSerializers.INT:Lnet/minecraft/network/syncher/EntityDataSerializer;
+        11: invokestatic  #1143               // Method net/minecraft/network/syncher/SynchedEntityData.defineId:(Ljava/lang/Class;Lnet/minecraft/network/syncher/EntityDataSerializer;)Lnet/minecraft/network/syncher/EntityDataAccessor;
+        14: putstatic     #218                // Field DATA_PHASE:Lnet/minecraft/network/syncher/EntityDataAccessor;

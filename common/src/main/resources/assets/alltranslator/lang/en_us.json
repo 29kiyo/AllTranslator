@@ -62,6 +62,7 @@
   "gui.alltranslator.categories.advancement_toasts": "Advancement Toasts",
   "gui.alltranslator.categories.recipe_toasts": "Recipe Unlock Toasts",
   "gui.alltranslator.categories.private_messages_and_titles": "Private Messages & Titles (/tell, /msg, /w, /teammsg, /title)",
+  "gui.alltranslator.categories.boss_bar_names": "Boss Bar Names",
   "gui.alltranslator.serverconfig.title": "All Translator Server Config",
   "gui.alltranslator.config.server_proxy": "Server-Proxy Translation",
   "gui.alltranslator.config.server_proxy_label": "Server-Proxy Translation",

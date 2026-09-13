@@ -55,6 +55,7 @@ public final class TranslationCategoriesScreen extends Screen {
     private CycleButton<Boolean> advancementToastsButton;
     private CycleButton<Boolean> recipeToastsButton;
     private CycleButton<Boolean> otherScreensButton;
+    private CycleButton<Boolean> bossBarNamesButton;
 
     public TranslationCategoriesScreen(Screen parent) {
         super(Component.translatable("gui.alltranslator.categories.title"));
@@ -115,6 +116,11 @@ public final class TranslationCategoriesScreen extends Screen {
         this.addRenderableWidget(otherScreensButton);
         rightY += ROW_HEIGHT;
 
+        bossBarNamesButton = CycleButton.onOffBuilder(model.translateBossBarNames)
+                .create(rightX, rightY, WIDTH, 20, Component.translatable("gui.alltranslator.categories.boss_bar_names"));
+        this.addRenderableWidget(bossBarNamesButton);
+        rightY += ROW_HEIGHT;
+
         this.addRenderableWidget(
                 Button.builder(CommonComponents.GUI_DONE, button -> onDone())
                         .pos(this.width / 2 - 75, this.height - 24)
@@ -137,6 +143,7 @@ public final class TranslationCategoriesScreen extends Screen {
         model.translateAdvancementToasts = advancementToastsButton.getValue();
         model.translateRecipeToasts = recipeToastsButton.getValue();
         model.translateOtherModScreens = otherScreensButton.getValue();
+        model.translateBossBarNames = bossBarNamesButton.getValue();
         configManager.save();
     }
 

@@ -133,6 +133,18 @@ public final class ConfigModel {
      */
     public boolean translateRecipeToasts = true;
 
+    /**
+     * Phase 14 (Boss bar name translation, PHASE_INSTRUCTIONS.md Phase 14 item 6):
+     * BossHealthOverlayMixin's @Redirect on LerpingBossEvent#getName() (client-side
+     * draw-time substitution only - see that Mixin's Javadoc for why this never
+     * touches ServerBossEvent/broadcast state). Default ON. Client-only category, so
+     * unlike translateSystemMessages/translatePrivateMessagesAndTitles this has no
+     * server-authoritative counterpart and is therefore NOT exposed on
+     * RemoteServerCategoriesScreen (which only surfaces settings a server admin can
+     * meaningfully control).
+     */
+    public boolean translateBossBarNames = true;
+
     /** Phase 13: append " (original name)" after translated item names/tooltip first lines. Off by default. */
     public boolean showOriginalNameOnItems = false;
 

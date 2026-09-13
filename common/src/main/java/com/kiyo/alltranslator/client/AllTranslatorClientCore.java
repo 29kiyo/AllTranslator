@@ -66,6 +66,12 @@ public final class AllTranslatorClientCore {
         TranslatableTextInterceptor recipeToastInterceptor = new TranslatableTextInterceptor(
                 AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.languageResolver());
         AllTranslatorCore.installRecipeToastInterceptor(recipeToastInterceptor);
+        // Phase 14 (Boss bar name translation): dedicated interceptor instance, same
+        // "one instance per content category" pattern as the toast interceptors above -
+        // see BossHealthOverlayMixin for the actual hook.
+        TranslatableTextInterceptor bossBarNameInterceptor = new TranslatableTextInterceptor(
+                AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.languageResolver());
+        AllTranslatorCore.installBossBarNameInterceptor(bossBarNameInterceptor);
         // Phase 5: chat translation. Loader modules (fabric/neoforge) register the
         // actual receive-event listener and call AllTranslatorCore.chatTranslationCoordinator()
         // once this returns, since Fabric API's message events and NeoForge's

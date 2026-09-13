@@ -8,7 +8,8 @@
     "EntityMixin",
     "ChatComponentAccessor",
     "AdvancementToastMixin",
-    "RecipeToastMixin"
+    "RecipeToastMixin",
+    "BossHealthOverlayMixin"
   ],
   "mixins": [
     "PlayerListMixin",

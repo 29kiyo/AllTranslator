@@ -1,0 +1,874 @@
+1,19c1,853
+< 
+< ## 【方針決定の追記】ボスバー名翻訳・tellraw/システムメッセージ翻訳(2026-09-02)
+< 
+< 前回セッションで「対応要否は未決定」としていた2件について、ユーザーと相談の上、両方とも**対応する方針**に決定した(既知の制限として確定・記録するのではなく、次回以降のPhase 14タスクとして実装検討に進める)。
+< 
+< ### 6. ボスバー名翻訳(エンダードラゴン等) — 対応する
+< 
+< 次回着手時の手順:
+< 1. `ClientboundBossEventPacket`(または同等のボスバー名送信経路)の実シグネチャを`javap`で確認する(CLAUDE.md §3、推測禁止)。
+< 2. キー無し動的テキストとしての扱いになる見込みのため、ARCHITECTURE.md §3(既存翻訳優先判定)との整合性を確認してから実装する。
+< 3. 対象はバニラのエンダードラゴンに限らず、mod製ボスも`BossEvent`経由であれば同じフックで共通してカバーできるよう、common側に汎用化して実装する。
+< 
+< ### 7. tellraw/mod/データパック由来メッセージ翻訳 — 対応する
+< 
+< 次回着手時の手順・注意点:
+< 1. `PlayerList#broadcastSystemMessage`への新規フック(Mixin/Redirect)を追加する前に、実際のメソッドシグネチャを`javap`で再確認する。
+< 2. 対象範囲が「tellrawコマンド全般」「mod/データパックが生成する任意のシステムメッセージ」と非常に広いため、既存のカテゴリ別ON/OFF(`ConfigModel`の`translateChat`等)と同様の専用トグルを新設し、デフォルトは要検討(既存の`translateChat`は対象外のPlayerChatMessageのみを指すため、混同しない名前にする)。
+< 3. 既存の`ChatTranslationCoordinator`/`ServerChatTranslationCoordinator`(Phase 5〜)の枠組みに統合するか、独立した新規コーディネーターにするかは未決定。per-player言語解決や二重翻訳問題(Phase 14タスク2、新S2Cペイロード)と設計が絡むため、着手前に方針を決めること。
+< 4. mod側が既に対象言語に多言語対応済みのメッセージまで誤って再翻訳してしまうリスクは未検討。既存翻訳チェック(§3)がキー無しテキストには効かないことを踏まえ、何らかの緩和策(例: 既にターゲット言語と一致する文字列の簡易検出)を検討する余地がある。
+---
+> # All Translator - Development Status
+> 
+> ## Current Phase
+> Phase 14 — **進行中**。Phase 13は完了済み(本ドキュメント内の該当セクションに履歴として記録)。
+> 
+> **今回のセッション(Phase 14、2回目)**: DEVELOPMENT_STATUS.md「Next Phase」記載の残タスク4「サーバー翻訳窓口方式(`ProviderType.SERVER_PROXY`)」に着手し、実装・実機確認済み(マルチプレイのdedicated server + クライアントA、C2S/S2C往復・LM Studio経由の実翻訳・3件同時リクエストの並行処理まで確認)。詳細は下記「【今回のセッション(Phase 14、2回目)で解決した問題】」を参照。実装過程で前回セッションの未結論調査(`TranslatableTextInterceptor`の`STUCK_TRACKING`診断ログ)を発見し、既知の別課題として本ドキュメントに正式記録した(下記「【前回セッションからの申し送り事項の確認結果】」参照)。
+> 
+> **今回のセッション(Phase 14、1回目)**: PHASE_INSTRUCTIONS.md記載のPhase 14項目1・4・5(部分)に着手し実装・実機確認済み。加えてユーザーからの追加要望(スコアボード機能、キーバインド追加、forcedTargetLanguage優先順位変更)を実装。実機マルチプレイ検証を通じて**重大な開発環境バグ**(`:fabric:runServer`と`:fabric:runClient`が同一`config.json`を共有していた)を含む複数の不具合を発見・修正した。詳細は下記「【今回のセッション(Phase 14、1回目)で解決した問題】」を参照。
+> 
+> ## Phase 13 完了時点の記録(履歴)
+> 
+> **セッション(4回目)**: Phase 13で唯一残っていた項目「サーバー側チャット翻訳(serverSideChatTranslationEnabled: true)のマルチプレイ実翻訳確認」を実施。実施の過程で以下を発見・修正・実機確認済み:
+> 
+> 1. **【新規発見・修正】サーバー側翻訳とクライアント側翻訳(Phase 5)の二重適用(ARCHITECTURE.md §20.2の既知の制限が実機で再現することを確認)**
+>    dedicated server + オフライン2クライアント(TestPlayerA=en_us, TestPlayerB=ja_jp)で実際にマルチプレイ接続し検証。両クライアントの`serverSideChatTranslationEnabled`をtrueにした状態で、`ホーム`という同一文言を複数回送信したところ、受信側の訳文が`my house`→`Home`のように送信のたびに揺れることを確認。これはサーバー側が既に翻訳した結果を、受信クライアント自身のPhase 5(`ChatTranslationCoordinator`)がさらに翻訳してしまう二重適用であり、ローカル7B量子化モデルの非決定性(既知の制限、本ドキュメント別項参照)によって二重翻訳の事実が可視化されたもの。ARCHITECTURE.md §20.2が「理論上の懸念」として記載していた内容が、実機で確かに発生することが実証された。
+> 
+>    **恒久修正(新規S2Cペイロード)は本セッションでは未実装**: 正式な解決には「サーバーが既にこのクライアント宛に翻訳済みである」ことをクライアントに伝える新しいS2Cペイロードが必要だが、MC 26.2の`CustomPacketPayload`/`StreamCodec`の実シグネチャ未検証のまま実装しないというCLAUDE.md §3の方針により、Phase 14以降に持ち越し。
+> 
+>    **部分緩和策(新規ネットワーク通信なしで実装・実機確認済み)**: `ChatTranslationCoordinator#onPlayerChatReceived()`に、クライアント自身のローカル`config.json`の`serverSideChatTranslationEnabled`が`true`の場合はPhase 5のクライアント側翻訳処理そのものをスキップするガードを追加。「サーバー側翻訳を使うつもりのクライアントは、自分自身では二重に翻訳しない」という自衛的なローカル判定。これにより今回再現した二重翻訳シナリオは解消し、実機で訳文の揺れが収まることを確認済み(`ホーム`→`Home`で安定、`friend`→`友人`で安定)。
+>    既知の制限として残る点: サーバー管理者がサーバー側でのみ機能を有効にし、個々のクライアントがローカルの同フラグを立てていない場合はこの緩和策の対象外(その場合も二重翻訳は起こり得る)。恒久的解決には引き続き新規S2Cペイロードが必要。
+> 
+> 2. **【新規発見・修正】サーバー側翻訳モードで`showOriginalTextInChat`(原文併記)が機能しない副作用の修正**
+>    上記の緩和策により、`serverSideChatTranslationEnabled: true`のクライアントはPhase 5を丸ごとスキップするようになった。Phase 5にしか実装されていなかった原文併記機能(`showOriginalTextInChat`、Phase 13で追加)がサーバー側翻訳モードでは反映されなくなる副作用が生じたため、`ServerChatTranslationCoordinator`側にも原文併記ロジックを追加。
+>    **設計判断(既知の制限として明記)**: 個々のクライアントの`showOriginalTextInChat`設定はサーバーに同期されていない(新規C2Sペイロードが必要になるため)。そのため、サーバー側翻訳モードでは**サーバー管理者自身の`config.json`の`showOriginalTextInChat`設定を、サーバー側翻訳を受ける全プレイヤーに一律適用する**。個々のクライアントの好みではなくサーバー管理者の設定に従う点は、既にサーバー管理者のオプトイン機能である「サーバー側翻訳モード」自体の設計方針(§9)と整合する。
+>    実機確認済み: `友人 (friend)`、`Home (ホーム)`のように、訳文+原文併記が単一表示で正しく機能することを確認。二重翻訳(揺れ)も再発しないことを確認。
+> 
+> 3. **開発環境上の対応(コード変更ではない)**: このセッションのマルチプレイ実機検証のため、`fabric/run2`ディレクトリと2つ目のクライアント実行構成(IntelliJの「Minecraft Client (:fabric) 2」)を用意し、両クライアントとも`online-mode=false`のサーバーに対してオフライン認証(別ユーザー名 TestPlayerA/TestPlayerB)で接続できるようにした。`build.gradle`への恒久的な変更は行っていない(IDE実行構成のみ、プロジェクト設定ファイルとしては保存していない一時的なローカル設定)。
+> 
+> **今回のセッション(3回目)**: 問題B・Google Translate rate_limitの原因調査が完了(既知の制限として確定)。マルチプレイ実機検証中に新たに2件の重大バグ(クライアント表示言語=target言語時の誤翻訳、CONFIG_ERROR即時恒久無効化の誤判定)を発見・修正・実機/モック両方で検証完了。LAN参加クライアントの永続キャッシュ非対応、ローカル7Bモデルの翻訳品質のばらつきを既知の制限として確定。
+> 
+> **今回のセッション(2回目)で新たに発見・修正**: 実機テスト中に、属性修飾子ツールチップのtoString()漏れ、およびチャット翻訳で同一文言を再送信すると2回目以降が翻訳されないレースコンディションの2件のバグを発見し、いずれも修正・Fabric/NeoForge両方で実機確認済み。デフォルトURLボタンも実機確認完了。NeoForge側のCONFIG_ERRORクラッシュはコードのバグではなく、run/ディレクトリ固有の一時的な設定状態が原因と判明(解決済み扱い)。
+> 
+> ## 【今回のセッション(3回目)で解決した問題】
+> 
+> ### 問題B(showOriginalNameOnItemsのAPI翻訳経路での二重翻訳)の実機再検証 — 完了
+> 
+> 実機で明示的に再検証し、既に合成済みの「翻訳 (原文)」形式の文字列が再送信されないことを確認済み。前セッションのコードレビュー結果通り、`registerKnownOutput()`が正しく機能していた。**解決済み・再確認不要。**
+> 
+> ### Google Translate Free (`GOOGLE_WEB_FREE`) のrate_limit — 原因確定(既知の制限)
+> 
+> 今回のセッション中に単発チャット送信で即座に429が再現した。ログを精査した結果、このセッション内でAll Translatorが発行した翻訳リクエストはこの1件のみであり(直前のバースト送信等は一切なし)、コード側の重複リクエスト・二重翻訳が原因ではないと判断した。`GoogleWebFreeProvider`のJavadocに元々明記されている通り、無償・非公式・無契約のエンドポイントであり、同一ネットワーク/IPの過去の利用実績に起因するIPベースの制限が既にかかっていた可能性が最も高い。**実装バグではなく、外部エンドポイント側の既知の制限として確定。**
+> 
+> ### 【新規発見・修正】クライアント表示言語=target言語の場合の誤翻訳バグ(重大)
+> 
+> マルチプレイ検証中、クライアントのMinecraft表示言語と`forcedTargetLanguage`が両方`ja_jp`の環境で、libIPN/Inventory Profiles Next経由のUIテキストを開いた際、**既にバニラ日本語訳である`辰砂`・`辰砂の階段`等の文字列がそのままLLMへの翻訳リクエストとして再送信され**、`辰砂`→`赤土`、`辰砂の階段`→`朱砂の階段`のように誤った日本語に「翻訳」される不具合を発見。
+> 
+> **原因**: `ScreenWidgetTranslationHook`/`LibIpnCompat`/`UiLibCompat`は、他modのUI上に既にMinecraft自身の表示言語でレンダリング済みのテキストを`intercept(original, null)`という**キー無し**の形で拾う。ARCHITECTURE.md §3の「キー無しの動的テキストは常にキャッシュ→APIのフローに乗る」という設計は、FTB Questsのような真に動的なコンテンツを想定したものだったが、この経路が拾うテキストは実際には「Minecraft自身が既にクライアントの表示言語で解決済みの文字列」であり、クライアント表示言語とtarget言語が一致する場合に限り「翻訳不要なのに送ってしまう」問題が顕在化していた(Phase 13で既に修正した「オークの木→オーキの木」問題と同種の再発)。
+> 
+> **修正**:
+> - `LanguageResolver#resolveLiveClientLanguage()`を追加。`forcedTargetLanguage`を無視し、クライアントの生の表示言語のみを返す。
+> - `TranslatableTextInterceptor#intercept()`に、`key == null`かつ`resolveLiveClientLanguage() == 対象言語`の場合はAPIに送らず`knownOutputs`に登録して素通しするガードを追加。キー付き経路(アイテム名/ツールチップ等、既存翻訳チェックを経由する経路)には一切影響しない。
+> - 実機確認済み(クライアント言語=target言語=ja_jpの環境で、既存の日本語表示テキストが再送信されなくなったことを確認)。
+> 
+> ### 【新規発見】CONFIG_ERROR(HTTP 400/404)の即時恒久無効化が誤判定を招く問題 — 修正
+> 
+> マルチプレイ検証中、Traveler's Backpackのインベントリを開いた際に大量の翻訳リクエストがLM Studioへ殺到し、その最中に`New API`(`OPENAI_COMPATIBLE`)が`CONFIG_ERROR`(HTTP 400)と`TEMP_UNAVAILABLE`(HTTP 500)を交互に返す事象が発生。前セッションでは「NeoForgeのrun/ディレクトリ固有の一時的な設定状態が原因」と結論していたが、CLAUDE.md §21(前チャットの申告を鵜呑みにしない)に従い再調査した結果、**高負荷時にLM Studio自身が一時的に不正な400を返している可能性が高い**ことが判明。
+> 
+> `ApiState.recordFailure()`は従来、`CONFIG_ERROR`を`AUTH_FAILED`と同じ扱いで初回から即`DISABLED_PERMANENT`にしていたため、一過性の過負荷による400を「設定が恒久的に壊れている」と誤判定し、ユーザーの手動再設定なしには復帰できなくなっていた。
+> 
+> **修正**:
+> - `ApiState`に`CONFIG_ERROR_DISABLE_THRESHOLD = 3`を追加。`CONFIG_ERROR`は3回連続で発生するまでは`TEMP_UNAVAILABLE`と同じ短時間クールダウン付きの一時障害として扱い、3回目で初めて`DISABLED_PERMANENT`に遷移する。`AUTH_FAILED`(401/403)の即時恒久無効化は変更なし。
+> - `OpenAiCompatibleProvider`の例外メッセージに、レスポンスボディの先頭200文字を含めるようにした(次回同様の事象が起きた際、ログだけで原因を特定できるようにするため)。
+> - `tools/mock_translation_server.py`に`config_error_flaky`モードを追加し、実APIキーなしで閾値ロジックを検証できるようにした。
+> - **実機・モック両方で検証済み**: 固定`config_error`モードで3回目に恒久無効化されること(4回目のリクエストが発生しないこと)、`config_error_flaky`モード(2回400→3回目成功)で恒久無効化されずに正常回復すること、両方を確認済み。
+> 
+> ### 【新規発見】LAN参加(非ホスト)クライアントは永続キャッシュを持たない — 既知の制限として確定
+> 
+> マルチプレイ検証中、LANに参加したクライアント(ホストではない側)で翻訳された結果が`<world>/alltranslator/translations/ja_jp.json`に一切保存されていないことが判明。原因を確認したところ、`WorldCacheConnector`は`LifecycleEvent.SERVER_STARTED`(統合サーバーを起動した側でのみ発火)を購読しており、LAN参加のみのクライアントは自分自身でMinecraftサーバーを起動しないため、このイベントが一度も発火せず`CacheManager`の永続保存先ディレクトリが未設定のまま(メモリLRUのみで動作)になる。これはユーザー判断により**意図した制約として受容**し、コード変更は行わない。
+> 
+> ### 【新規発見】ローカル7B量子化モデルの翻訳品質のばらつき — 既知の制限として確定
+> 
+> ワールドセーブ内の永続キャッシュ(`ja_jp.json`)をsavedAt順に精査した結果、セッション最初期から品質のばらつきが散在していることを確認(例: `Albanian`→`アラビア語`(正しくは「アルバニア語」)、`Jukebox Upgrade`→`ジャーキックスのアップグレード`)。時系列的な偏り(コールドスタート限定)ではなく、`temperature: 0`設定下でも7Bクラスの量子化ローカルモデルが固有名詞・専門用語で確率的に誤訳するという、**モデル自体の翻訳品質の限界**と判断した。README/CHANGELOGに既知の制限として記載し、`config/alltranslator/lang/<code>.json`によるユーザー手動上書きの手順を目立つ場所に明記する。
+> 
+> ## 【今回のセッション(2回目)で解決した問題】
+> 
+> ### 独自Screen/Widget実装を持つmodへの翻訳対応(libIPN・UI Lib)
+> 
+> `ScreenWidgetTranslationHook`は元々`Screen#children()`が返すvanilla `AbstractWidget`のサブクラスのみを対象にしており、libIPN(`org.anti_ad.mc`、Inventory Profiles Next等が使用)やUI Lib(`com.daqem.uilib`)のような、vanilla `AbstractWidget`を継承しない独自ウィジェット体系を持つmodの設定画面は翻訳対象外だった。
+> 
+> **設計方針(CLAUDE.md §3準拠)**: 全て実際のjarを`javap`で確認した上で、**publicなgetter/setterのみで完結する場合に限り**対応する方針を確立。ビルド時の依存追加は行わず(ユーザー方針: 「jarを組み込んでほしいわけではない、翻訳できるようにしたいだけ」)、実行時リフレクションのみで実装。`Platform.isModLoaded(...)`で未導入環境では該当クラスを一切ロードしない設計(Phase 7のMod Menu連携と同じ確立済みパターン)。
+> 
+> **拡張可能な骨格**: `WidgetFrameworkCompat`インターフェース(`compat/widgetframework/`)を新設し、`ScreenWidgetTranslationHook`が登録済みアダプタを順に呼び出す形にした。将来別のフレームワーク対応を追加する際もこの骨格に実装を追加するだけで済む。
+> 
+> #### libIPN対応(実装完了・実機確認済み)
+> - `compat/libipn/LibIpnCompat.java`: `org.anti_ad.mc.common.gui.screen.BaseScreen#getRootWidget()` → `Widget#getChildren()`を再帰的に辿り、`Widget#getText()/setText(String)`を書き換える。
+> - **編集可能テキストフィールドの除外**: `ITextFieldWidget`(検索ボックス等)は`Widget.text`とは別プロパティ(`getVanillaText()/setVanillaText()`)を使うことをjavapで確認済み。念のため`instanceof ITextFieldWidget`で明示的にも除外し、ユーザーの入力中テキストが誤って翻訳APIに送信されるリスクを構造的に排除。
+> - 実機ログで動作確認: `"libIPN detected; screen widget translation compat enabled."`
+> 
+> #### UI Lib対応(実装完了・**実機確認は未実施**、ユーザー手元に検証環境なし)
+> - `compat/uilib/UiLibCompat.java`: `com.daqem.uilib.gui.AbstractScreen#getComponents()` → `IComponent#getComponents()`を再帰的に辿り、`AbstractTextComponent`のインスタンスにのみ`getText()/setText(Component)`を適用。
+> - 編集可能な`EditBoxWidget`は`AbstractTextComponent`とは別クラス階層(vanilla`EditBox`直接継承)であることをjavapで確認済み、構造的に対象外。
+> - 実機ログで検出は確認済み(`"UI Lib detected; screen component translation compat enabled."`)だが、実際にUI Lib製画面での翻訳動作(テキスト書き換わり)そのものは未確認。
+> 
+> #### 調査したが対応不可と判断したライブラリ(既知の制限)
+> 以下は全て実際のjarを`javap`で確認した上で、**publicな読み書きAPIが存在しない**ことを理由に見送った。将来該当ライブラリに公開APIが追加されれば再検討の余地あり。
+> 
+> - **MaLiLib**(`fi.dy.masa.malilib`、Litematica/MiniHUD/Tweakeroo等が使用): `ButtonBase#setDisplayString()`はsetterのみでgetterが無く、`GuiBase`の`widgets`/`buttons`リストも`private`で公開列挙APIが無い。「今何が表示されているか読む」「子を列挙する」の両方がpublicメソッドだけでは不可能。
+> - **Sodium**(`net.caffeinemc.mods.sodium`): 新しい宣言的Config API(`Option#name`)が`final`フィールドで、対応するsetterが存在しない。表示名が構造的に不変。
+> - **Cloth Config**(`me.shedaniel.clothconfig2`): `AbstractConfigEntry#getFieldName()`にsetter相当が無い。同じく不変。
+> - **YACL**(`dev.isxander.yacl3`): `Option#name()`にsetterなし。`Option.Builder#name(Component)`はビルド時専用で、生成済みインスタンスへの再設定はできない。
+> - **owo-lib**(`io.wispforest.owo`): `LabelComponent#text()/text(Component)`というgetter/setterペアと`ParentUIComponent#forEachDescendant()`という便利な再帰列挙APIまで存在し、他ライブラリよりAPI形状は良好だったが、ルートComponentへのアクセス経路(`BaseOwoScreen#uiAdapter`→`OwoUIAdapter#rootComponent`)が両方とも`protected`/`public final`フィールドであり、public**メソッド**のみでは辿れない。プロジェクト内で確立した「publicメソッドのみ、非publicフィールドへの`setAccessible`は行わない」という一貫した基準に基づき見送り。
+> - **Iceberg**(`com.anthonyhilyard.iceberg`): 調査の結果、独自Widget/テキスト体系を一切持たない(グラデーション矩形描画等のmixin/描画ユーティリティのみ)。翻訳対象となる独自UIが存在しないため、そもそも対応の必要なし(既知の制限ではなく対象外として確定)。
+> 
+> ### API設定画面の3つの不具合修正
+> 
+> #### 1. openai_compatibleのデフォルトURLボタンが反応しない
+> `ApiEditScreen#onFillDefaultEndpoint()`のswitch文に`OPENAI_COMPATIBLE`/`GENERIC_REST`のcaseが無く、`default -> null`で無視されていた。`OPENAI_COMPATIBLE`(後述のChatGPT用)には公式OpenAIのURLを追加。**`GENERIC_REST`は意図的にnullのまま維持**(調査の結果、`GenericRestProvider`は`extraParams`で任意の平坦JSON APIを叩く完全に独立した汎用プロバイダであり、OpenAI互換ではないため、唯一の正しいデフォルトURLが存在しない)。
+> 
+> #### 2. Google Translate Free (GOOGLE_WEB_FREE) のrate_limit — 未解明のまま持ち越し
+> ユーザーから「1回チャット送っただけでrate_limitが出た」と報告。過去ログを調査したが、実際に見つかった`RATE_LIMITED`の記録は全てPhase 11のモックテストサーバー(`tools/mock_translation_server.py`)によるフェイルオーバー検証時のものであり、今回の実体験のログはゲーム再起動により失われていた。**実装バグの確証は得られず、外部の無料非公式エンドポイント自体が実際に厳しい制限を持つ可能性を否定する材料もない。** 次回同じ現象が起きた際は、その場で`fabric/run/logs/latest.log`を確認すること(ログローテーションでファイル名が変わるため、発生後速やかに)。
+> 
+> #### 3. Model/APIキー欄が、不要なプロバイダでも常に入力可能だった
+> 各プロバイダの実際の`translate()`実装を確認し、`ApiEditScreen`に`requiresApiKey()`/`allowsApiKey()`/`usesModelField()`を追加。プロバイダ切り替え時(`CycleButton.OnValueChange`経由、マウスクリック・`<`ボタン両方に対応)に`EditBox#setEditable()`で該当フィールドを非活性化し、`setTextColorUneditable()`で灰色表示。`GOOGLE_WEB_FREE`選択時にAPIキー欄の値が自動クリアされることを実機確認済み。
+> 
+> ### ChatGPT用/ローカル用プロバイダの分離(ユーザー要望)
+> 
+> `OPENAI_COMPATIBLE`のenum定数名は**変更しなかった**(`ConfigManager`はGsonデフォルト設定でenumを`name()`のままJSON保存しており、リネームすると既存ユーザーの`config.json`が読み込み時に壊れるため)。代わりに:
+> - 新しい enum定数 `ProviderType.OPENAI_COMPATIBLE_LOCAL` を追加(APIキー任意、デフォルトURLは`http://localhost:1234/v1/chat/completions`、LM Studio想定)。
+> - `OpenAiCompatibleProvider`を`ProviderType`と`requireApiKey`フラグを受け取れるよう改修し、`ProviderFactory`で2インスタンス(`OPENAI_COMPATIBLE`=必須、`OPENAI_COMPATIBLE_LOCAL`=任意)を登録。APIキー未設定時は`Authorization`ヘッダ自体を送らないよう修正(空文字列送信の回避)。
+> - `ApiEditScreen`の表示名を翻訳キー化(`gui.alltranslator.apiedit.provider_chatgpt`=「ChatGPT」、`gui.alltranslator.apiedit.provider_local`=「Local」/「ローカル」)、実機確認済み。
+> - **llama.cpp(`llama-server`)については未検証**。同じOpenAI互換`/v1/chat/completions`を公式に提供しているとされるが、ユーザー手元に環境が無く実機確認できなかった。プロトコルが一致していれば`OPENAI_COMPATIBLE_LOCAL`で動作するはずだが、「動作確認済み」ではない旨をREADMEに明記すること。
+> 
+> ## 【今回のセッション(2回目)で解決した問題】
+> 
+> ### 問題4: 属性修飾子ツールチップに `translation{key='...', args=[]}` のような内部表現がそのまま表示される
+> 
+> `TranslatableTextInterceptor.reapplyArgsIfNeeded()` が `TranslatableContents#getArgs()` で得た `Object[]` を、要素の型を確認せずそのまま `String.format(Locale.ROOT, translated, args)` に渡していた。防具の属性修飾子ツールチップ行など、`args` に**ネストされた `Component` インスタンスがそのまま入っているケース**では、`String.format` の `%s` 変換が `Component#getString()` ではなく `Object#toString()` を呼び出してしまい、`TranslatableContents#toString()` の内部表現(`translation{key='attribute.name.armor', args=[]}` 等)が翻訳結果に混入してツールチップに表示される不具合だった。
+> 
+> **修正**: `args` の各要素が `Component` であれば `getString()` で平文化してから `String.format` に渡すよう変更。Fabric/NeoForge両方で実機確認済み(属性修飾子付き防具のツールチップで再現しないことを確認)。
+> 
+> ### 問題5: チャットで同一文言を再送信すると、2回目以降が翻訳されない
+> 
+> 実機テストで、「friend」等の同一文言をチャットで複数回送信すると、2回目以降が翻訳されずに原文のまま残る不具合が見つかった。連続送信でなくても(間に別の発言を挟んでも)再現した。
+> 
+> **原因1(走査方向)**: `ChatComponent#allMessages` は新しいメッセージほど先頭(index 0)に入る(`ChatComponent#addMessageToDisplayQueue` が `List#addFirst` を呼ぶことを、MC 26.2マージ済みjarへの `javap` で確認済み)。従来の `patchDisplayedLine` は `i=0` から順に走査していたため、同一文言を短時間に複数回送信すると、後から完了した翻訳が誤って「より新しい(まだ未翻訳の)行」にマッチしてしまい、古い方の行の翻訳結果が捨てられていた。
+> 
+> **原因2(タイミング競合、より根本的)**: 2回目以降のリクエストはメモリキャッシュに即座にヒットし、`translationService.translate(...)` の `CompletableFuture` がほぼ同期的に完了する。この場合、パッチ処理が実行される時点で、vanilla自身がまだ該当行を `ChatComponent#allMessages` に追加し終えていないことがあり(イベント発火順序に依存)、マッチに失敗して翻訳が静かに失われていた。実機ログで `Chat translation patch: no matching line found ...` という診断ログ(調査用に一時追加、その後リトライ機構に置き換えて削除)が vanilla自身の `[CHAT]` ログより先に出力されることを確認し、この仮説を実証した。
+> 
+> **修正**:
+> - `patchDisplayedLine` の走査方向を末尾(最古)から先頭(最新)へ反転(Plan B)。
+> - さらに、翻訳完了時に1回だけ即座にパッチを試みる方式をやめ、`pendingPatches` というリトライキューに積み、Architectury共通の `ClientTickEvent.CLIENT_POST`(`AllTranslatorClientCore` から配線、`AllTranslatorKeyBindings` と同じ確立済みパターン)経由で毎ティック再試行する方式に変更。最大20ティック(約1秒)以内にマッチすれば成功、それでも見つからなければ諦めてログを出す。
+> - Fabric/NeoForge両方で実機確認済み(連続・非連続いずれの同一文言再送信でも正しく翻訳されることを確認、「gave up after」ログも出ていないことを確認)。
+> - **既知の限界**: 3回以上の同一文言が短時間に送信され、かつ翻訳の完了順序が送信順序と大きくズレるケースは、依然として理論上ズレる可能性が残る(リトライキュー自体は解決するが、走査ロジックが「最も古い未パッチの一致」を選ぶため、3つ以上が同時に未パッチの場合は combinatorial に完全解決ではない)。実用上は解消したが、README/CHANGELOGの既知の制限欄には引き続き記載する。
+> 
+> ### NeoForge CONFIG_ERRORクラッシュ(19:42台に発生)の原因確認
+> 
+> `ProviderFactory`・`ApiManager`・`ApiEditScreen#onSave()` を確認したが、いずれも実装上の不具合は見当たらなかった。クラッシュ時刻のログを詳細に確認した結果、これは **NeoForge独自の `run/` ディレクトリが持つ `config.json` が、その時点では(Fabric側とは別に)`OPENAI_COMPATIBLE`(キー必須)を含む状態のままだった**ことが原因と判断した。Fabric/NeoForgeは `run` ディレクトリが完全に独立しているため設定は同期されない。**コードのバグではない**と結論し、解決済み扱いとする。
+> 
+> ### デフォルトURLボタン(OPENAI_COMPATIBLE / OPENAI_COMPATIBLE_LOCAL / GENERIC_REST)の実機確認完了
+> 
+> 3パターンとも意図通りの動作を確認: ChatGPT(`OPENAI_COMPATIBLE`)→ 公式OpenAI URLが入る、Local(`OPENAI_COMPATIBLE_LOCAL`)→ LM StudioのデフォルトURLが入る、GenericREST → 意図通り何も入らない。
+> 
+> ### LM Studioの「渋滞」現象(processing promptが複数同時に長時間終わらない)の原因整理
+> 
+> `TranslationService` の `Semaphore(MAX_CONCURRENT_HTTP_REQUESTS=3)` はクライアント側・サーバー側で正しく共有されており、二重化などの実装上の不具合は見つからなかった。実際の原因は、大型modpack(Traveler's Backpackのスキン名等)がインベントリを開くたびに大量の翻訳リクエストを一度にキューへ積む一方、LM Studioが7Bモデルを6GB VRAMで部分オフロードしているため1リクエストの処理に数秒〜数十秒かかる(観測されたeval速度: 0.14〜3.5 tokens/秒)という、**ローカルLLMのスループット制約に起因するもの**であり、コード側のバグではないと判断した。将来的な改善案として、`Semaphore` の並列数をUI/設定から調整可能にする案をPhase 14以降の検討事項として記録する(README/CHANGELOGにも既知の制限として記載予定)。
+> 
+> ## 【未解決・要調査 — 次のチャット向け】
+> 
+> **この節は Phase 13 完了時点で、解決済み項目を全て除去し整理済みです。**
+> 
+> ### NeoForge側の一連の再確認(未解決、持ち越し)
+> libIPN/UI Lib対応・ApiEditScreen改修・ChatGPT/Local分離を含め、セッション2回目の変更は全てFabric側の`runClient`でのみ検証されている。特にlibIPN/UI Libのjarは`fabric/run/mods/`にのみ配置されており、NeoForge側でも同じmod(NeoForge版jar)を使って同様に動作するかは未確認。
+> セッション3回目でクライアント表示言語=target言語時の誤翻訳バグ・CONFIG_ERROR誤判定の修正はFabric/NeoForge両方で実機確認済みだが、それ以外(libIPN/UI Lib対応、ApiEditScreen改修等)のNeoForge側再確認は依然として未実施。優先度が高くなければPhase 14以降でまとめて確認する形でよい。
+> 
+> ### README.md/CHANGELOG.mdの「既知の制限」欄確定(未着手、Phase 14冒頭タスク)
+> 反映すべき内容は本ドキュメント全体に記載済みのため、実質的には転記作業。反映すべき主な項目:
+> - libIPN(実装済み・実機確認済み)/UI Lib(実装済み・未実機確認)/MaLiLib・Sodium・Cloth Config・YACL・owo-lib(対応不可、理由付き)/Iceberg(対象外)の状況
+> - Google Translate Freeのrate_limit(原因確定済み: 外部無償エンドポイントのIPベース制限、コード側の問題ではない)
+> - llama.cpp未検証、Anthropic/Gemini/DeepL/Google Cloud v2の実キー未検証(Phase 11から持ち越し)
+> - チャット翻訳のリトライキュー方式と、3回以上の同一文言連続送信時の既知の限界
+> - LM Studioなどのローカルサーバーでの「渋滞」はスループット制約であり、将来的な並列数調整オプションが未実装であること
+> - LAN参加クライアントの永続キャッシュ非対応、ローカル7Bモデルの翻訳品質のばらつき(セッション3回目で既知の制限として確定)
+> - サーバー側翻訳とクライアント側翻訳の二重適用(セッション4回目で実機確認・部分緩和策実装済み。恒久修正は新規S2Cペイロードが必要で未実装)
+> - サーバー側翻訳モードでの原文併記(`showOriginalTextInChat`)は個々のクライアントの設定ではなく、サーバー管理者自身の設定に一律従う(セッション4回目で実装・実機確認済み)
+> 
+> **以下は解決済みのため、この節から除去しました(該当セクション本文を参照):**
+> - ~~問題B(showOriginalNameOnItemsの二重翻訳)の実機再検証~~ → セッション3回目で完了・確認不要
+> - ~~Google Translate Free rate_limitの原因調査~~ → セッション3回目で原因確定・既知の制限として確定
+> - ~~サーバー側チャット翻訳(serverSideChatTranslationEnabled: true)のマルチプレイ実翻訳確認~~ → セッション4回目で完了・実機確認済み(二重翻訳バグの発見・修正も含む)
+> 
+> 
+> ## Changed Files (今回のセッション4回目)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/text/ChatTranslationCoordinator.java`(`serverSideChatTranslationEnabled`がローカルでtrueの場合にPhase 5のクライアント側チャット翻訳自体をスキップするガードを追加。ARCHITECTURE.md §20.2の既知の制限に対する、新規ネットワーク通信を伴わない部分緩和策)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/text/ServerChatTranslationCoordinator.java`(`ConfigManager`をコンストラクタで受け取るよう変更。サーバー管理者自身の`showOriginalTextInChat`設定に基づき、サーバー側翻訳結果にも原文併記`" (原文)"`を付与するロジックを追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/AllTranslatorCore.java`(`ServerChatTranslationCoordinator`のコンストラクタ呼び出しに`configManager`を追加)
+> - (コード変更ではない、開発環境のみ)`fabric/run2/`ディレクトリを新設(2つ目のクライアント検証用、`.gitignore`対象と同様の一時実行ディレクトリ。プロジェクト成果物ではない)
+> 
+> ## Testing Status (今回のセッション4回目)
+> - dedicated server(`./gradlew :fabric:runServer`)+ オフライン2クライアント(IntelliJ実行構成「Minecraft Client (:fabric)」= TestPlayerA/en_us、「Minecraft Client (:fabric) 2」= TestPlayerB/ja_jp、`server.properties`の`online-mode=false`)で実機マルチプレイ接続を確立
+> - サーバー側per-player翻訳(`serverSideChatTranslationEnabled: true`、両クライアント)の実翻訳動作: **実機確認済み**
+>   - 修正前: `friend`→`友達（友達）`(二重表示)、`ホーム`→`my house`/`Home`(送信のたびに揺れる、二重翻訳の証拠)を確認
+>   - `ChatTranslationCoordinator`への自衛ガード追加後: `friend`→`友人`、`ホーム`→`Home`で安定(揺れなし)を確認
+>   - `ServerChatTranslationCoordinator`への原文併記ロジック追加後: `friend`→`友人 (friend)`、`ホーム`→`Home (ホーム)`で単一表示・原文併記とも正しく機能することを確認
+>   - 送信者本人には翻訳が適用されないこと(原文のまま自分のログに表示)を確認
+>   - `<world>/alltranslator/translations/`(永続キャッシュ)にチャット内容が一切書き込まれていないことを確認(§8.1: チャットは永続キャッシュ対象外、設計通り)
+> - `./gradlew :fabric:build`: 成功(複数回、最終版含む)
+> - NeoForge側: 本セッションでは未実施(Fabric側のみ検証。既存の持ち越し事項と同列、Phase 14以降で必要に応じて確認)
+> 
+> 
+> ## Changed Files (今回のセッション3回目)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/lang/LanguageResolver.java`(`resolveLiveClientLanguage()`追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/text/TranslatableTextInterceptor.java`(キー無しテキストの再翻訳防止ガード追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/service/ApiState.java`(`CONFIG_ERROR_DISABLE_THRESHOLD`追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/provider/OpenAiCompatibleProvider.java`(例外メッセージにレスポンスボディ先頭200文字を追加)
+> - 変更: `tools/mock_translation_server.py`(`config_error_flaky`モード追加)
+> 
+> ## Changed Files (今回のセッション2回目)
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/compat/widgetframework/WidgetFrameworkCompat.java`(拡張可能な骨格インターフェース)
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/compat/libipn/LibIpnCompat.java`
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/compat/uilib/UiLibCompat.java`
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/client/ScreenWidgetTranslationHook.java`(WidgetFrameworkCompatアダプタ呼び出しを追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/api/ProviderType.java`(`OPENAI_COMPATIBLE_LOCAL`追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/provider/OpenAiCompatibleProvider.java`(ProviderType/requireApiKeyパラメータ化)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/provider/ProviderFactory.java`(2種別登録)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/client/gui/ApiEditScreen.java`(デフォルトURL修正、フィールド有効化制御、表示名マッピング)
+> - 変更: `common/src/main/resources/assets/alltranslator/lang/en_us.json` / `ja_jp.json`(新規翻訳キー追加)
+> - 削除: `common/src/main/java/com/kiyo/alltranslator/text/TranslatableTextInterceptor.java.bak2`(問題A修正前の古いバックアップ、diff確認の上削除)
+> 
+> ## Testing Status (今回のセッション3回目)
+> - 問題Bの実機再検証: 完了(再送信なしを確認)
+> - Google Translate Freeのrate_limit: 原因確定(既知の制限)、コード修正なし
+> - クライアント表示言語=target言語時の誤翻訳バグ: 実機確認済み(修正後、既存の日本語テキストが再送信されないことを確認)
+> - CONFIG_ERROR閾値修正: 実機+モックサーバー両方で確認済み(固定config_errorモードで3回目に恒久無効化・4回目のリクエストが発生しないこと、config_error_flakyモードで2回400後3回目成功し正常回復することを確認)
+> - `./gradlew :fabric:build`: 成功
+> - マルチプレイサーバー側チャット翻訳: 未実施(次回に持ち越し)
+> 
+> ## Testing Status (今回のセッション2回目以前)
+> - `./gradlew :fabric:build`: 成功(複数回、最終版含む)
+> - libIPN: 実機確認済み(検出ログ確認、Widget翻訳の実動作は前回セッションで既存確認範囲)
+> - UI Lib: 検出ログのみ確認済み、実際の翻訳動作は未確認(検証環境なし)
+> - ApiEditScreenのフィールド有効化: 実機確認済み(GOOGLE_WEB_FREE選択時の非活性化・値クリア)
+> - ChatGPT/Local表示名: 実機確認済み(スクリーンショットで「ChatGPT」「Local」表示を確認)
+> - デフォルトURLボタン(OPENAI_COMPATIBLE/OPENAI_COMPATIBLE_LOCAL/GENERIC_REST): 未実機確認(コードレビューのみ)
+> - Google Translate Freeのrate_limit再現: 未実施(次回発生時にログ確認)
+> - 問題B再検証: 未実施
+> - NeoForge側: 未実施(引き続き持ち越し)
+> 
+> ## 【Phase 14(次フェーズ)に見送った新機能】
+> 
+> ### 翻訳対象を項目別にON/OFFできる詳細設定画面(ユーザー要望、Phase 13スコープ外と判断)
+> 
+> ユーザーから「アイテム名は翻訳しないがツールチップは翻訳する、のように翻訳箇所を細かく設定したい。デフォルトは全てON」との要望があった。
+> 
+> **Phase 13で実装しなかった理由**: PHASE_INSTRUCTIONS.md/CLAUDE.md §20・§24により、Phase 13(最終テスト・リリース準備)は新機能追加ではなくバグ修正・既知の制限の解消が本来のスコープであるため、ユーザーと相談の上「設計だけ固めて実装はPhase 14相当に回す」ことで合意した。
+> 
+> **現状把握(次回チャットが設計・実装を始める際の起点)**:
+> - 現在、翻訳のON/OFFは全体スイッチ(`ConfigModel#translationEnabled`)と、`translateOtherModScreens`(他modのScreen翻訳のみの部分スイッチ)の2段階のみ。
+> - 実際にintercept()を呼んでいるフック/カテゴリの実体(Phase 13時点で確認済み):
+>   - `ItemTooltipTranslationHook`(アイテムツールチップ)
+>   - `ItemStackMixin`(アイテム表示名/getHoverName経由)
+>   - `EntityMixin`(エンティティ名)
+>   - `ScreenWidgetTranslationHook`(他modのScreenウィジェット、vanilla AbstractWidget経由 + libIPN/UI Libアダプタ経由)
+>   - チャット翻訳は別経路(`ChatTranslationCoordinator`、Phase 5)
+> - 未着手の設計項目:
+>   - `ConfigModel`にカテゴリ別ON/OFFフラグを追加する場合のフィールド設計(例: `translateItemNames`/`translateItemTooltips`/`translateEntityNames`/`translateChat`等)、デフォルトは全てtrue。
+>   - 各フック(`ItemTooltipTranslationHook`/`ItemStackMixin`/`EntityMixin`/`ChatTranslationCoordinator`)の`intercept()`呼び出し前に該当カテゴリのフラグチェックを追加。
+>   - `AllTranslatorConfigScreen`(または新規サブ画面)へのUI追加。現在の2カラムレイアウトは既にやや窮屈なため、新規画面(例: 「翻訳対象の詳細設定」ボタンから開く別Screen)として独立させることを検討。
+>   - `translateOtherModScreens`との統合方針(既存の部分スイッチを新設計に統合するか、独立のまま残すか)は未決定。
+> 
+> ## 【今回のセッション(Phase 14、1回目)で解決した問題】
+> 
+> ### 1. README.md/CHANGELOG.mdの「既知の制限」欄確定 — 完了
+> 
+> Phase 13完了時点でDEVELOPMENT_STATUS.mdに記載済みだった全既知の制限を転記。加えて本セッション中に新たに判明した2件(色コード埋め込みテキストの翻訳仕様、ローカルLLMのタイムアウト既定値30秒)も追記済み。
+> 
+> ### 2. ローカルLLM向け同時リクエスト数のUI化 — 完了
+> 
+> `TranslationService`にハードコードされていた`MAX_CONCURRENT_HTTP_REQUESTS = 3`を`ConfigModel#maxConcurrentHttpRequests`として設定画面から変更可能にした。`java.util.concurrent.Semaphore`には稼働中に総パーミット数を変更する標準APIが無い(`reducePermits(int)`はprotected)ため、`ResizableSemaphore`という薄いサブクラスを新設し、`release()`/`reducePermits()`を組み合わせて絶対値指定の`setTotalPermits(int)`を実現した。実機確認済み(値を1に絞ると実際に同時実行が1件ずつになることを確認)。
+> 
+> ### 3. `/alltranslator refresh`コマンド — 完了(当初のrefreshは「本格版」まで拡張)
+> 
+> ユーザー要望により、単なる状態リセットに留まらず「送信済みのHTTPリクエスト自体を強制中断できる」本格版として実装した。
+> 
+> - **`InFlightCallRegistry`(新規)**: 各プロバイダが`httpClient.sendAsync(...)`の**生のfuture**(`.thenApply()`等で派生させる前のオブジェクト)を登録する仕組み。JavaのCompletableFuture APIは、派生後のstageをcancel()しても親のfutureには伝播しないため、この生futureへの参照を保持することが実際の強制中断に必須と判明(実装前にAPI仕様を確認済み)。全7プロバイダ(`OpenAiCompatibleProvider`/`GenericRestProvider`/`GoogleWebFreeProvider`/`DeepLCompatibleProvider`/`GoogleCloudV2Provider`/`AnthropicProvider`/`GeminiProvider`)の`translate()`に`InFlightCallRegistry`引数を追加し、送信直後に登録・完了時に登録解除するよう改修。
+> - 強制中断されたリクエストは`CancellationException`として扱われ、`TranslationService.attemptNext()`側で「APIの健全性への悪影響としてカウントしない・次候補への連鎖もしない」よう分岐(意図的な中断であり、APIが壊れたわけではないため)。
+> - `ApiManager.refreshAll()` / `ApiState.forceAvailable()`: `DISABLED_PERMANENT`以外の全APIのクールダウン・レート制限状態を即座に解除。`recordSuccess()`とは意図的に区別し、`lastSuccess`/probing履歴には触れない(「実際に成功した」という偽の実績を作らないため)。
+> - `PendingRequestMap.clear()`: 合流待ちの滞留エントリをクリア。
+> - **権限設計**: OP(`LEVEL_GAMEMASTERS`)に加え、**シングルプレイのワールドオーナー本人はチート許可の有無に関わらず実行可能**(`MinecraftServer#isSingleplayerOwner(NameAndId)`を使用。javapで実在確認済み)。これは`refresh`がMod自身の内部状態のみを操作しゲーム世界に触れないための意図的な緩和。
+> - 副次的に発見・修正: `<player>`引数のタブ補完が、非OPユーザーにも全オンラインプレイヤー名を候補表示していた問題。`SharedSuggestionProvider`を使い、非OPには自分の名前のみ候補表示するよう修正(`requireSelfOrOp`による**実行**のブロックは元々機能していたが、補完候補に無関係な他人の名前が見える点は別問題だった)。
+> - Mキー(設定画面。既定を`L`から変更)・Kキーで`/alltranslator refresh`をワンタッチ実行できるキーバインドを追加。
+> 
+> ### 4. サイドバースコアボード機能(新規、ユーザー要望) — 完了
+> 
+> Minecraft標準のサイドバー`Objective`を用いた、有効化されている翻訳APIごとの実行中リクエスト数・状態・待機件数の可視化。
+> 
+> - 表示対象は**有効化(enabled)されているAPIのみ**(`ApiManager.getEnabledConfigs()`、状態を問わず全enabled configを対象。候補選定用の`getOrderedCandidates()`とは異なり、あえて利用不可なAPIも表示するため別メソッドとして新設)。
+> - 各エントリの検索キー(`ScoreHolder.forNameOnly(...)`)にはAPI設定のUUID文字列という不変値を使い、実際に表示されるテキストは`ScoreAccess#display(Component)`で別途上書きする設計にした。これにより、APIの状態が変わるたびにエントリを削除・再作成する必要がなく、表示更新のみで済む。
+> - `TranslationService`に**API単位の実行中カウンタ**(`ConcurrentHashMap<UUID, AtomicInteger>`)を新設。既存のグローバルSemaphoreは全API合算の同時実行数しか分からないため、表示用に別途追加。
+> - サーバー全体でのON/OFFは`ConfigModel#scoreboardEnabled`(既定false)。マルチプレイでは`/alltranslator scoreboard on|off`(OP限定)、シングルプレイでは設定画面のトグルボタンでも同じ設定値を変更できる(統合サーバーとクライアントが同一プロセスであることを利用)。
+> - 更新間隔は`ConfigModel#scoreboardUpdateIntervalSeconds`(既定5秒)で設定可能。
+> - **発見・修正したバグ**: `ApiState#status()`は実際に翻訳が成功するまで古い状態(`TEMP_UNAVAILABLE`等)のままで、クールダウンが過ぎただけでは更新されない。スコアボードがこれをそのまま参照していたため、クールダウンが明けても次に誰かが実際に翻訳を発生させるまで表示が「エラー」のまま何分も固まって見える不具合があった。`ApiState#isUsableNow()`(クールダウンの実時刻を見る、候補選定ロジックと同じ判定基準)を使うよう修正し解決。
+> 
+> ### 5. 色コード(`§`)埋め込みテキストの翻訳破損バグ — 発見・修正(2度の設計変更を経て決着)
+> 
+> **発見の経緯**: Traveler's Backpackのツールチップ(`§6Backpack Tier: §4Leather`のような、Style経由ではなくテキスト自身に生の色コードを埋め込む方式)が、翻訳後に色が完全に失われる、または無関係な範囲まで着色される、という実機バグが報告された。
+> 
+> **試みて失敗した方式1**: `Component`ツリーをStyleの変わり目で「ラン」に分割し、色付きの各ランを不可視のマーカー文字(Unicode私用領域)で囲んでAPIに送信し、翻訳後にマーカーを目印に色を復元する方式。→ Traveler's Backpackの色は実際にはStyleではなくテキスト自身に埋め込まれた生の`§`文字だったため、この方式の前提(Style階層での色分割)自体が実態と合っておらず的外れだった。
+> 
+> **試みて失敗した方式2**: 生の`§`コードを、既存の(元々は未使用だった)`PlaceholderProtector`の私用領域マーカーでトークン化して保護する方式。→ 実機検証の結果、**ローカル7B量子化モデル(qwen2.5.1-coder-7b-instruct)は、見慣れない私用領域文字を出力から確実に削除してしまう**ことが判明(`§6`が跡形もなく消え、マーカーで囲んだはずの色コード自体が失われた)。クラウドAPIなら問題にならない可能性が高いが、ローカル小型モデル環境では致命的だった。
+> 
+> **最終的に採用した方式**: `LocalizedTextResolver#resolve()`に、`§`コードの正規表現マッチングによる**事前セグメント分割**を実装。色コードの境界でテキストを分割し、コードに挟まれた各テキスト片だけを(再帰的に同じ`resolve()`経由で)個別に翻訳し、色コード自体は**一切翻訳APIに渡さず**、こちらのコード側で機械的に組み戻す。この方式なら、モデルがマーカーを消すリスクそのものが構造的に発生しない。トレードオフとして、文全体の文脈を保ったまま翻訳できない(セグメントごとに独立した翻訳になる)ため、訳文がやや不自然になったり、色の掛かる範囲が理想的な位置からずれることがある(README/CHANGELOGに既知の制限として明記済み)。
+> 
+> ### 6. `forcedTargetLanguage`(管理者全体設定)と個人設定の優先順位変更
+> 
+> ユーザー要望(「管理者がja固定でも、個々のプレイヤーが`/alltranslator language`で自分だけ別言語にしたい」)により、`PerPlayerLanguageResolver#resolve()`の優先順位を変更した。
+> 
+> - 変更前: `forcedTargetLanguage` → per-player override → vanilla同期 → en_us
+> - 変更後: **per-player override → `forcedTargetLanguage` → vanilla同期 → en_us**
+> - `forcedTargetLanguage`は「絶対的な強制」から「個人が未選択の場合のサーバー既定値」という位置づけに変わった。ARCHITECTURE.md §20.1の該当記述、および本ドキュメント更新済み。
+> 
+> ### 7. シングルプレイでチャットが誰にも翻訳されない穴 — 発見・修正
+> 
+> `serverSideChatTranslationEnabled: true`のシングルプレイで、自分自身の発言が一切翻訳されない不具合を発見。原因は2つの正しい安全策の組み合わせによる隙間だった: (a) クライアント側`ChatTranslationCoordinator`の自衛ガード(Phase 13で追加、「サーバーがやるはずだから自分はやらない」)と、(b) `ServerChatTranslationCoordinator`の「送信者本人には翻訳しない」ルール(マルチプレイでは正しい仕様)。シングルプレイでは送信者=受信者が同一人物のため、両方のルールが同時に働き、誰も翻訳しないという結果になっていた。
+> 
+> **修正**: `ServerChatTranslationCoordinator`に、**オンラインプレイヤーが現在1人だけの場合に限り**送信者スキップルールを緩和する例外を追加(`MinecraftServer#getPlayerList().getPlayers().size() == 1`で判定)。2人以上になれば通常のマルチプレイ挙動に自動的に戻る。実機確認済み。
+> 
+> ### 8. プロンプトベース3プロバイダの翻訳先言語指定を、言語コードから可読な言語名に変更
+> 
+> `OpenAiCompatibleProvider`/`AnthropicProvider`/`GeminiProvider`のシステムプロンプトが、翻訳先言語を`'ja_jp'`のような生のMinecraft内部言語コードのままLLMに渡していた。実機マルチプレイ検証で、この生コード指定がローカル7Bモデルの誤訳(スペイン語で返す等)の一因である疑いが生じたため、`LanguageResolver#toReadableName(String)`という言語コード→英語での可読名(`Japanese`等)変換テーブルを新設し、プロンプトには可読名とコードの両方を含めるよう変更(`DeepL`/`Google Cloud v2`/`Google Translate Free`は専用APIパラメータで言語指定するため対象外)。
+> 
+> **検証の結果、この変更単独では根本解決に至らなかった**(後述9番の開発環境バグが真因だったため)。ただし小型モデルへの意図伝達としては理にかなった改善であるため、修正自体は維持している。
+> 
+> ### 9. 【最重要】開発環境バグ発見: `:fabric:runServer`と`:fabric:runClient`が`config.json`を共有していた
+> 
+> マルチプレイでのチャット翻訳が方向によって(特に英→日方向が)一貫して失敗する不具合を追跡した結果、根本原因はコードではなく**Gradle実行構成の設定漏れ**だったことが判明した。
+> 
+> `architectury { fabric() }`が生成する既定のFabric Loom実行構成では、`client`と`server`のいずれにも個別の`runDir`を指定しない限り、同じ`run/`ディレクトリ(および同じ`config/alltranslator/config.json`)を共有してしまう。この環境では専用サーバー(`:fabric:runServer`)が、たまたま同時に起動していたクライアントA(`:fabric:runClient`)のクライアント側`config.json`を、**サーバー自身の設定として**読み書きしてしまっていた。`PerPlayerLanguageResolver`はサーバー自身の`forcedTargetLanguage`を見るため、サーバーが実際にはAさんの個人的な言語設定を「全プレイヤー共通の管理者設定」だと誤認する形になり、Bさん方向の翻訳が意図しない言語で解決されていた。
+> 
+> **修正**: `fabric/build.gradle`に以下を追加し、`server`実行構成にのみ専用ディレクトリを割り当てた:
+> 
+> ```gradle
+> loom {
+>     runs {
+>         server {
+>             runDir "run-server"
+>         }
+>     }
+> }
+> ```
+> 
+> (`RunConfigSettings#runDir(String)`は`@Deprecated`だが現行のArchitectury Loom 1.17.491で動作することをsources jarで確認済み。)
+> 
+> この修正後、`fabric/run-server/`に専用サーバー用の独立した`config/alltranslator/config.json`が新規作成されるようになり、実機検証で双方向のチャット翻訳が正しく機能することを確認した。
+> 
+> **教訓**: 実開発環境特有の設定漏れが、コードのバグであるかのような紛らわしい症状(方向による翻訳の非対称性、`/at status`の解決言語が想定と違う等)を長時間引き起こしていた。今後、複数プロセスが絡む挙動が疑わしい場合は、まず「そもそも意図した独立性が保たれているか」(config.json・player-settings.json等の実ファイルパス)を先に確認する価値が高い。
+> 
+> ### 10. ローカルLLMのHTTPタイムアウト既定値(30秒)が長文で不足する問題
+> 
+> `OpenAiCompatibleProvider`の既定タイムアウトは30秒(`DEFAULT_TIMEOUT_SECONDS`)。ローカル7B量子化モデルは、複数文からなる長めのチャットメッセージやmodアイテムの長いツールチップの生成に30秒以上かかることがあり、`java.net.http.HttpTimeoutException`で失敗、その後のクールダウンで一定時間再試行不能になる実機バグとして現れた。全ての検証用config.json(`fabric/run`・`run2`・`run-server`・`neoforge/run`)の該当API設定に`"timeoutSeconds": "120"`を追加して解消。README/CHANGELOGに既知の注意点として明記済み(ローカルLLM利用者への推奨設定として)。
+> 
+> ## 【今回のセッション(Phase 14、2回目)で解決した問題】
+> 
+> ### 4. 【新規要望、実装完了】サーバー翻訳窓口方式(`ProviderType.SERVER_PROXY`)
+> 
+> ARCHITECTURE.md §12(APIキーは常にサーバー/クライアント間で一方向にしか使わない)を守りつつ、クライアントが個別にAPIキーを持たなくても、サーバー管理者が設定したAPI経由で翻訳できる新しいプロバイダ種別を実装した。
+> 
+> **設計・実装**:
+> - 新規enum定数 `ProviderType.SERVER_PROXY`。クライアント環境(`Platform.getEnvironment() == Env.CLIENT`、`ProviderFactory`でガード)でのみ登録され、専用サーバーの`providers`マップには一切登録されない(構造的な無限再帰防止その1)。
+> - 新規C2Sペイロード `ServerProxyPayloads.Request(requestId, sourceText, sourceLang, targetLang)` / 新規S2Cペイロード `ServerProxyPayloads.Response(requestId, success, translatedText, noTranslationNeeded)`。vanillaの`CustomPacketPayload`/`StreamCodec`(MC 26.2の現行API、javapで実シグネチャ確認済み)をArchitectury `NetworkManager`経由で使用。
+> - クライアント側キーもサーバー側キーも、ペイロードには一切乗らない(原文+言語コードのみ往復)。
+> - `ServerProxyProvider`(クライアント専用`TranslationProvider`実装): C2S送信後、`ClientProxyResponseRegistry`(static `ConcurrentHashMap<Long, CompletableFuture<Response>>`)でS2C応答と突き合わせる。応答futureには`orTimeout(serverProxyTimeoutSeconds, ...)`で**必ず有限のタイムアウト**を付与(既定60秒) — 下記「STUCK_TRACKING」調査で懸念されていた「futureが永久に完了しない」問題をこの新規経路については構造的に回避する設計とした。
+> - サーバー側受信ハンドラ(`AllTranslatorNetworking.handleRequestOnServer`、common・両物理サイド安全): `ConfigModel#serverProxyTranslationEnabled`(既定false、管理者オプトイン)を確認し、有効ならサーバー自身の`TranslationService`(自前のAPI設定・キー)で翻訳、結果のみをS2Cで返す。`persistable=false`固定(カテゴリ情報を持たないキーレス経路のため、ワールドセーブ内永続キャッシュには載せずメモリキャッシュのみ、チャットと同じ扱い)。
+> - **シングルプレイでの無限再帰対策(構造的防止その2)**: シングルプレイは統合サーバーとクライアントが同一JVM・同一`ApiManager`/`config.apis`を共有するため、`Platform.getEnvironment()`は`CLIENT`のまま(専用サーバー判定に使えない)。`TranslationService`に`excludeProvider`引数付きオーバーロードを追加し、サーバー側受信ハンドラがこの引数に`ProviderType.SERVER_PROXY`を渡すことで、自分自身を候補から除外する。
+> - UI: `ApiEditScreen`で`SERVER_PROXY`選択時はAPIキー欄・エンドポイント欄・Model欄を全て非活性化(`GOOGLE_WEB_FREE`と同様の扱い)。表示名は「サーバー経由(プロキシ)」。
+> - コマンド: `/alltranslator serverproxy on|off`(OP限定、`scoreboard on|off`と同じパターン)。**設定画面へのUIトグルは未実装**(`AllTranslatorConfigScreen.java`は本セッションで未確認のため、コマンドのみで完結させた。次回、同画面を確認した上でボタン追加を検討)。
+> 
+> **実装中に発見・修正した重大バグ(実装直後、初回起動でクラッシュ)**:
+> `NetworkManager.registerReceiver(Side.S2C, ...)`は、内部で型登録(`PayloadTypeRegistryImpl.register`)と受信ハンドラ登録を**同時に**行う一括APIだった(javapのバイトコードでは気づけず、実機クラッシュのスタックトレースで発覚)。当初の実装は、共通初期化(`AllTranslatorCore.init()`、両物理サイドで実行)で`NetworkManager.registerS2CPayloadType()`(型登録のみ)を無条件に呼び、その後クライアント専用初期化(`AllTranslatorClientCore.init()`)で`registerReceiver()`を呼んでいたため、クライアント/シングルプレイ環境(共通初期化もクライアント環境で実行される)で**同じ型を二重登録**し、`IllegalArgumentException: Packet type ... is already registered!`で起動時クラッシュした。修正: `registerS2CPayloadType()`の呼び出しを`Platform.getEnvironment() == Env.SERVER`(専用サーバーのみ、`registerReceiver()`を呼ばない側)に限定するガードを追加。
+> 
+> **実機確認結果(dedicated server + クライアントA、Fabricのみ。NeoForge側は未確認)**:
+> - 二重登録クラッシュ修正後、サーバー・クライアントとも正常起動、正常接続を確認。
+> - `/alltranslator serverproxy on`実行、クライアント側に`SERVER_PROXY`のAPIエントリを追加(他API無効化)した状態で、`forcedTargetLanguage`を`"ja"`(注: 正式な`ja_jp`ではなく既存翻訳チェックに引っかからない値として意図的に使用)に設定してインベントリを開いたところ、クライアント・サーバー両ログのタイムスタンプが完全に一致する形でC2S→サーバー側LM Studio翻訳→S2Cの往復が実行され(`inFlight++`/`--`のペアが両ログで同時刻に記録)、ユーザー本人が画面上でアイテム名が実際に日本語表示に変わったことを目視確認した。
+> - 3件同時リクエスト(1→2→3への`inFlight++`連続)も、クライアント・サーバー双方のカウンタが正しく同期して増減することを確認(単一飛行的な破綻・カウンタずれなし)。
+> - クラッシュ・例外は実機テスト中に一切発生しなかった。
+> 
+> **未検証・既知の制限(次回以降の持ち越し)**:
+> - `serverProxyTranslationEnabled=false`時にクライアントが即座に失敗を受け取る経路(`success=false`のS2C即時応答)は、コードレビュー上は実装済みだが実機では未確認(今回は`true`のケースしか試していない)。
+> - タイムアウト経路(サーバーが応答しない/切断されるケース)は未確認。
+> - NeoForge側は完全に未確認(Fabricのみで検証)。
+> - `AllTranslatorConfigScreen.java`への設定画面トグル追加は未着手(コマンドのみ)。
+> - `NetworkManager.canServerReceive()`/`sendToServer()`を`TranslationService`の`asyncExecutor`スレッド(メインスレッドではない)から呼んでいる点について、事前に「未検証」と警告していたが、実機では今回問題なく動作した。ただし単発のマルチプレイ検証のみでの確認であり、より高負荷や長時間セッションでのスレッド安全性の断定はできない。
+> 
+> ### 【前回セッションからの申し送り事項の確認結果】
+> 
+> - **`fabric/run-server`ディレクトリ分離**: 確認済み、正しく機能している(今回のセッションでも`fabric/run-server/config/alltranslator/config.json`と`fabric/run/config/alltranslator/config.json`が独立していることを利用して検証した)。
+> - **`[AT-DEBUG]`ログ**: `TranslationService`(`inFlight++`/`inFlight--`)と`ScoreboardManager`(`updateScoreboard() called`)に引き続き残置。今回のセッションでも実機確認の主要な手がかりとして活用した(SERVER_PROXY往復のタイムスタンプ一致確認に必須だった)。**リリース前の棚卸しは引き続き必要だが、当面は有用なため残す判断を維持する。**
+> - **`TranslatableTextInterceptor`の`STUCK_TRACKING`診断ログ(新規発見、前回ドキュメント未記載だった問題)**: 前回セッション(Phase 14、1回目)中に追加されていたが、DEVELOPMENT_STATUS.mdへの記録が漏れていたことが今回の調査で判明した(CLAUDE.md §21・§23違反状態だった)。コメント上は「`future`が`isDone()`にならないまま15秒以上残り続けるケースがあるかもしれない」という**未検証の仮説**であり、実際に発生したログ出力の記録・原因の特定はまだない。今回のセッションでは、SERVER_PROXY実装を優先する方針をユーザーと確認した上でこの調査そのものには着手しなかったが、SERVER_PROXY自身の設計(`ServerProxyProvider`の`orTimeout`、`ClientProxyResponseRegistry`のstatic mapは必ず`complete()`または`cancel()`で除去される设计)は、この種の「futureが永久に完了しない」問題を新規に持ち込まないよう意図的に設計した。**STUCK_TRACKING自体の原因調査は次回以降も未着手のまま持ち越し。** ログに`[AT-DEBUG] STUCK`という文字列が実際に出力された形跡がないか、次回セッションでまず`grep`することを推奨する。
+> 
+> ## Next Phase
+> Phase 14 は進行中。次回チャットは以下から着手すること。
+> 
+> **Phase 14セッション1回目で完了した項目**(詳細は上記「【今回のセッション(Phase 14、1回目)で解決した問題】」参照):
+> 1. README.md/CHANGELOG.mdの「既知の制限」欄確定 — 完了(今回発見した2件も追記済み)
+> 2. 同時リクエスト数のUI化 — 完了(`ResizableSemaphore`)
+> 3. `/alltranslator refresh`(本格版・生HTTP強制中断) — 完了
+> 4. サイドバースコアボード(新規要望) — 完了
+> 5. forcedTargetLanguage優先順位変更 — 完了
+> 6. Mキー/Kキーバインド追加 — 完了
+> 
+> **Phase 14の残タスク(次回チャットが着手する項目)**:
+> 
+> 1. **翻訳対象を項目別にON/OFFできる詳細設定画面**(未着手) — 現状把握はPhase 13完了時点のまま変わらず有効(下記【Phase 14に見送った新機能】参照)。デフォルト全てON。
+> 
+> 2. **Mod進捗表示・トースト通知の翻訳対応**(未着手) — MC 26.2の実際のToast/Advancement API(`ToastManager`/`SystemToast`等)を`javap`で確認すること(CLAUDE.md §3、推測禁止)。既存の`apiErrorToastEnabled`(All Translator自身の内部エラー通知、英語固定・翻訳対象外)とは別物なので混同しないこと。
+> 
+> 3. **サーバー側/クライアント側チャット二重翻訳の恒久修正(新規S2Cペイロード)**(部分対応のみ、恒久修正は未着手) — 今回、シングルプレイ(送信者=受信者が同一人物)のケースのみ`ServerChatTranslationCoordinator`の例外で解決済み。ARCHITECTURE.md §20.2記載の本来の既知の制限(「サーバー管理者のみが機能を有効にし、個々のクライアントがローカル設定を追随していない場合」の二重翻訳)は依然未解決。着手する場合はMC 26.2の`CustomPacketPayload`/`StreamCodec`の実シグネチャ確認から開始すること(前回セッションでNetworkManager関連のsources jar確認まで着手した形跡があるが、再確認推奨)。
+> 
+> 4. **【完了、Phase 14セッション2回目】サーバー翻訳窓口方式(`ProviderType.SERVER_PROXY`)** — 実装・実機確認済み。詳細は上記「【今回のセッション(Phase 14、2回目)で解決した問題】」参照。項目3(二重翻訳恒久修正用のS2C/C2Sペイロード基盤)は今回のSERVER_PROXY実装によって、必要な`CustomPacketPayload`/`StreamCodec`の実シグネチャ確認・登録パターン(`registerC2S`/`registerS2CPayloadType`/`registerReceiver`の使い分けと、クライアント/シングルプレイでの二重登録の罠)が既に一度実証されたため、次回項目3に着手する際はこの実装(`network/`パッケージ一式)をそのまま参考にできる。
+> 
+> ### 今回のセッションで判明した追加の注意点(次回チャットへの申し送り)
+> 
+> - **開発環境の実行構成に注意**: `fabric/run-server/`が専用サーバー用に新設された(`fabric/build.gradle`の`loom { runs { server { runDir "run-server" } } }`)。`fabric/run`・`fabric/run2`はクライアント検証用(それぞれA=英語想定・B=日本語想定で使われてきた)。`neoforge/run`はNeoForge側の検証用(直近では未使用気味)。マルチプレイ関連の不具合調査時は、必ず「どのconfig.jsonが実際にどのプロセス(サーバー/クライアントどちら)のものか」を`find . -path "*/alltranslator/config.json"`等で洗い出してから調査を始めること。過去に何度もここの混同で無駄な調査が発生した。
+> - **`player-settings.json`の`languageOverride`はテスト中の設定が残り続ける**: 明示的にリセットしない限り、過去のテストで`/alltranslator language`により設定した値がそのまま残り、後の検証結果を混乱させる。挙動が想定と違う場合はまず該当ファイルを確認すること。
+> - **ローカル7B量子化モデル(qwen2.5.1-coder-7b-instruct)の翻訳品質**: 当初「英→日方向が特に苦手」という仮説を立てたが、実際の主因は上記の開発環境バグ(config.json共有)だったと判明。ただし完全にモデル起因の品質ばらつき自体は別途既知の制限として引き続き存在する(Phase 13セッション3回目で確認済みの`Albanian`→`アラビア語`等の誤訳)。新しい翻訳品質の異常を見つけた場合、まず開発環境側(config共有・タイムアウト・キャッシュ汚染)を疑い、それでも再現するもののみをモデル限界として扱うこと。
+> - **診断ログの後始末**: 本セッション中に一時的な`[AT-DEBUG]`ログを複数箇所(`TranslationService`のinFlightカウンタ、`ScoreboardManager`のupdateScoreboard呼び出し、`MinecraftLanguageDataSource`の初回読み込み)に追加し、原因特定後は`MinecraftLanguageDataSource`分のみ削除した。**`TranslationService`と`ScoreboardManager`の`[AT-DEBUG]`ログはまだ残っている**(継続的な動作確認に有用なため意図的に残置)。本番リリース前には要棚卸し。
+> 
+> ## 【Phase 14セッション: 項目別ON/OFF設定画面 + リモートサーバー設定画面(/alltranslator config)】
+> 
+> ### 実装完了項目
+> 1. **項目別ON/OFF設定画面**(`TranslationCategoriesScreen`): `ConfigModel`に`translateItemNames`/`translateItemTooltips`/`translateEntityNames`/`translateChat`を追加(全てデフォルトtrue)。各フック(`ItemStackMixin`/`ItemTooltipTranslationHook`/`EntityMixin`/`ChatTranslationCoordinator`/`ServerChatTranslationCoordinator`)にガード追加。実機確認済み(Fabric)。
+> 2. **エンダードラゴンのボスバー翻訳**: 調査の結果、`Entity#getName()`とは独立した`BossEvent#name`フィールド経由でクライアントに送られるため、既存の`EntityMixin`は一切関与していないと判明(バグではなく未実装)。対応は見送り、既知の制限として記録。
+> 3. **チャット翻訳の対象範囲確定**: プレイヤーチャット(`PlayerChatMessage`)のみが対象。tellraw/mod/データパック由来のメッセージ(`PlayerList#broadcastSystemMessage`経由)は対象外と確定(javapで`PlayerList`の実メソッド一覧を確認)。既知の制限として記録。
+> 4. **リモートサーバー設定画面(`/alltranslator config`)**: 新規実装。詳細は次項。
+> 
+> ### リモートサーバー設定画面(`/alltranslator config`) — 実装・実機確認済み(既知の制限あり)
+> 
+> **設計**: SERVER_PROXYと同じC2S/S2Cペイロードパターンを踏襲。`ServerConfigPayloads`(`OpenScreen`/`Save`/`SaveResult`、`ConfigModel`丸ごとをGson JSON文字列化して送受信)、`ServerConfigNetworking`(common、送受信ハンドラ+`Commands.LEVEL_GAMEMASTERS.check()`によるパケット受信時の独立した権限再検証)。APIキーは一切この経路に乗らない(`RemoteServerApiEditScreen`にAPIキー欄自体が存在しない)。
+> 
+> **画面構成**: `RemoteServerConfigScreen`(タイトル「All Translator Server Config」、ローカル`AllTranslatorConfigScreen`の全項目 + サーバー専用の`serverProxyTranslationEnabled`トグル)、`RemoteServerCategoriesScreen`、`RemoteServerApiListScreen`、`RemoteServerApiEditScreen`(いずれもローカル画面のミラー、ライブなConfigManager/ApiManager/CredentialStoreを持たないため、渡された`ConfigModel`インスタンスへの直接書き込みのみ)。
+> 
+> **実機で発見・修正した重大バグ(2件)**:
+> 
+> 1. **専用サーバー起動時クラッシュ(`Cannot load class net.minecraft.client.gui.screens.Screen in environment type SERVER`)**: 当初`ServerConfigNetworking`(common、両物理サイドでロードされる)のS2C受信ハンドラ内に`RemoteServerConfigScreen`(Screenサブクラス)への直接参照を書いてしまっていた。専用サーバーでその特定メソッドが実際に呼ばれなくても、クラスファイルがクライアント専用型を参照しているだけでクラス検証時にクラッシュする。修正: Screen参照を新設のクライアント専用クラス`RemoteConfigClientReceiver`に完全分離。
+> 
+> 2. **極小ウィンドウでのクラッシュ(`IllegalArgumentException: Scissor size must be >0, was 292x0`)**: `/alltranslator config`実行直後、GUIスケール自動設定で解像度が極端に小さくなる環境(実測: 854x480ウィンドウ→スケール後427x240)で、`RemoteServerConfigScreen`を開くと再現性高くクラッシュ。長時間の二分探索調査により以下を確認:
+>    - ROW_HEIGHTを40→34に変更してもクラッシュの数値(`292`)が不変 → 自前のY座標計算は原因ではない
+>    - ウィジェットを1つずつ有効化していく二分探索の結果、特定のウィジェット単体にもY座標単体にも再現性が無く、「はみ出し量」そのものが引き金と判明
+>    - ローカルの`AllTranslatorConfigScreen`(Mキー)も**全く同じウィンドウサイズで同様にウィジェットがはみ出す**(Doneボタンが他の項目と重なって表示される、実機スクリーンショットで確認済み)にも関わらず、Mキー側は一切クラッシュしない
+>    - Mキー側は`ClientTickEvent.CLIENT_POST`のキー入力ポーリング内、かつ`client.gui.screen() == null`の場合のみ`setScreen()`を呼ぶ設計だったため、`RemoteConfigClientReceiver`側も全く同じガード+同じイベントでの遅延オープンに変更したが、**それでもクラッシュは再現した**
+>    - 上記により、両画面の「開き方」を可能な限り一致させても解消しないことを確認済み。バニラのGuiRenderer/EditBoxのシザークリッピング計算に起因する、現時点では特定しきれていない差異(ネットワーク受信という起点そのものに起因する何らかのタイミング/状態の違いの可能性が高い)が残っている。
+> 
+>    **最終対応(実装済み・実機確認済み)**: 深追いを中断し、`RemoteServerConfigScreen`に最小必要ウィンドウサイズ(高さ300px/幅400px)未満の場合はウィジェットを一切生成せず「ウィンドウが小さすぎます」という警告画面のみを表示するガードを追加。実機で極小ウィンドウでもクラッシュしないこと、通常サイズでは全項目が問題なく機能することの両方を確認済み。
+> 
+>    **未解決の根本原因(次回以降の持ち越し)**: なぜMキー経由なら安全なはみ出しが、ネットワーク経由だとクラッシュするのかは特定できていない。次回調査するなら、バニラの`GuiRenderer`/`RenderPass.enableScissor`のソースを実際にjavapで確認し、シザー領域計算がどのような入力で幅は正、高さ0という不正値になり得るかを起点に、ネットワークコールバック起点特有の何が違うかを追う必要がある。実用上は影響ないため優先度は低い。
+> 
+> ### Changed/Created Files
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/config/ConfigModel.java`(カテゴリ別フラグ追加、`replaceModel()`用に`ConfigManager`側も変更)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/config/ConfigManager.java`(`replaceModel()`追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/mixin/ItemStackMixin.java`/`EntityMixin.java`、`common/src/main/java/com/kiyo/alltranslator/client/ItemTooltipTranslationHook.java`、`common/src/main/java/com/kiyo/alltranslator/text/ChatTranslationCoordinator.java`/`ServerChatTranslationCoordinator.java`(カテゴリガード追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/client/gui/AllTranslatorConfigScreen.java`(Categoriesボタン追加、show_original_on_items配置調整)
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/client/gui/TranslationCategoriesScreen.java`
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/network/ServerConfigPayloads.java`/`ServerConfigNetworking.java`
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/client/RemoteConfigClientReceiver.java`
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/client/gui/RemoteServerConfigScreen.java`/`RemoteServerCategoriesScreen.java`/`RemoteServerApiListScreen.java`/`RemoteServerApiEditScreen.java`
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/command/CommandHandlers.java`(`config`サブコマンド追加、`scoreboard`/`serverproxy`サブコマンド削除 - 両方とも設定画面のトグルで代替可能なため)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/AllTranslatorCore.java`/`client/AllTranslatorClientCore.java`(ネットワーク登録・ティックフック配線)
+> - 変更: `common/src/main/resources/assets/alltranslator/lang/en_us.json`/`ja_jp.json`(新規キー群)
+> 
+> ### Testing Status
+> - `./gradlew build`(fabric+neoforge+common): 成功
+> - カテゴリ別ON/OFF: Fabric実機確認済み
+> - リモートサーバー設定画面: dedicated server + OPクライアントで実機確認済み(通常ウィンドウサイズでの全項目表示・保存・反映を確認)。極小ウィンドウでの警告画面表示・非クラッシュも確認済み
+> - 非OPでの`/alltranslator config`拒否: 未実施(コードレビュー上は`Commands.LEVEL_GAMEMASTERS`によるBrigadier権限チェックで弾かれるはず)
+> - NeoForge側: 未実施
+> 
+> ### NeoForge側が未実施な理由(補足)
+> 今回のセッションで起動したIntelliJ実行構成は一貫してFabric側(`fabric/run`のクライアント、`fabric/run-server`のサーバー)のみで、NeoForgeの実行構成(`neoforge/run`)を一度も起動していない。実装した変更(項目別ON/OFF、リモートサーバー設定画面、コマンド整理)は全てcommonモジュールのコードのみで、Fabric/NeoForgeでの分岐処理は追加していないため動作する可能性は高いが、実機未確認のまま「確認済み」と書くことはCLAUDE.md §21に反するため、明確に「未実施」として区別している。次回、NeoForge側の`runClient`/`runServer`(または相当する実行構成)で同じ一連の確認(カテゴリ別ON/OFF、`/alltranslator config`のOP/非OP双方、SERVER_PROXY)を行うこと。
+> 
+> ## Next Phase(このセッション終了時点、最新)
+> 
+> 前回セッションで残っていたタスクのうち、今回「1. 項目別ON/OFF設定画面」は完了。残るPhase 14タスクは以下(優先順位はユーザー判断による):
+> 
+> 1. **Toast/Advancement翻訳対応**(未着手) — MC 26.2の実際のToast/Advancement API(`ToastManager`/`SystemToast`等)を`javap`で確認することから開始(CLAUDE.md §3、推測禁止)。
+> 2. **チャット二重翻訳の恒久修正(新規S2Cペイロード)**(部分対応のみ、singleplayerの1人プレイ時のみ解決済み) — SERVER_PROXY実装・今回のリモート設定画面実装(`network/`パッケージ、C2S/S2Cペイロード registerC2S/registerS2CPayloadType/registerReceiver の使い分けと二重登録の罠)が同種の技術基盤として参考にできる。
+> 3. **SERVER_PROXY残作業**(未実施) — `serverProxyTranslationEnabled=false`時の即時失敗応答の実機確認、タイムアウト経路の実機確認、NeoForge側確認。設定画面UIトグル自体は今回のリモート設定画面実装で追加済み(`RemoteServerConfigScreen`のServer-Onlyセクション)。
+> 4. **リモートサーバー設定画面(`/alltranslator config`)の残確認**(未実施) — 非OPでの拒否確認、NeoForge側確認(上記「NeoForge側が未実施な理由」参照)。
+> 5. **今回新規発見・対応保留の項目**(要ユーザー判断):
+>    - エンダードラゴン等のボスバー名翻訳 — 構造的に未実装(`Entity#getName()`とは独立した`BossEvent#name`経由)と判明。対応するかは未決定。
+>    - tellraw/mod/データパック由来のチャット・システムメッセージの翻訳 — 現状スコープ外(`PlayerList#broadcastSystemMessage`経路は未対応)と確定。対応するかは未決定。
+>    - `RemoteServerConfigScreen`の極小ウィンドウクラッシュの根本原因(未解明、実害は「小さすぎます」警告で回避済み) — 深追いする場合はバニラ`GuiRenderer`/`RenderPass.enableScissor`のソースをjavapで確認するところから(詳細は上記セッション記録参照)。優先度低。
+> 
+> ## 【方針決定の追記】ボスバー名翻訳・tellraw/システムメッセージ翻訳(2026-09-02)
+> 
+> 前回セッションで「対応要否は未決定」としていた2件について、ユーザーと相談の上、両方とも**対応する方針**に決定した(既知の制限として確定・記録するのではなく、次回以降のPhase 14タスクとして実装検討に進める)。
+> 
+> ### 6. ボスバー名翻訳(エンダードラゴン等) — 対応する
+> 
+> 次回着手時の手順:
+> 1. `ClientboundBossEventPacket`(または同等のボスバー名送信経路)の実シグネチャを`javap`で確認する(CLAUDE.md §3、推測禁止)。
+> 2. キー無し動的テキストとしての扱いになる見込みのため、ARCHITECTURE.md §3(既存翻訳優先判定)との整合性を確認してから実装する。
+> 3. 対象はバニラのエンダードラゴンに限らず、mod製ボスも`BossEvent`経由であれば同じフックで共通してカバーできるよう、common側に汎用化して実装する。
+> 
+> ### 7. tellraw/mod/データパック由来メッセージ翻訳 — 対応する
+> 
+> 次回着手時の手順・注意点:
+> 1. `PlayerList#broadcastSystemMessage`への新規フック(Mixin/Redirect)を追加する前に、実際のメソッドシグネチャを`javap`で再確認する。
+> 2. 対象範囲が「tellrawコマンド全般」「mod/データパックが生成する任意のシステムメッセージ」と非常に広いため、既存のカテゴリ別ON/OFF(`ConfigModel`の`translateChat`等)と同様の専用トグルを新設し、デフォルトは要検討(既存の`translateChat`は対象外のPlayerChatMessageのみを指すため、混同しない名前にする)。
+> 3. 既存の`ChatTranslationCoordinator`/`ServerChatTranslationCoordinator`(Phase 5〜)の枠組みに統合するか、独立した新規コーディネーターにするかは未決定。per-player言語解決や二重翻訳問題(Phase 14タスク2、新S2Cペイロード)と設計が絡むため、着手前に方針を決めること。
+> 4. mod側が既に対象言語に多言語対応済みのメッセージまで誤って再翻訳してしまうリスクは未検討。既存翻訳チェック(§3)がキー無しテキストには効かないことを踏まえ、何らかの緩和策(例: 既にターゲット言語と一致する文字列の簡易検出)を検討する余地がある。
+> 
+> ## 【Phase 14セッション: tellraw翻訳実装 + M-key言語自動同期】(実装・実機確認済み)
+> 
+> ### 1. tellraw/mod/データパック由来メッセージ翻訳(項目7) — Option A、実装・実機確認済み
+> 
+> **方針(ユーザー決定、Option A)**: `ServerPlayer#sendSystemMessage(Component)`は`javap`確認の結果、`/tellraw`だけでなく`CommandSourceStack#sendSuccess/#sendFailure`(あらゆるコマンドのフィードバック)、`gamerule logAdminCommands`のOPブロードキャスト、`sendBuildLimitMessage`等、非常に広い範囲で共有されていることが判明。これに一律フックすると大量の不要なAPI呼び出しが発生する(CLAUDE.md §7違反)ため、`ServerPlayer#sendSystemMessage`ではなく**`TellRawCommand`自体**にフックするスコープの狭い設計を採用した。
+> 
+> - `javap`で`TellRawCommand#lambda$register$0`の実バイトコードを確認: 対象プレイヤーを1人ずつループし、`ServerPlayer#sendSystemMessage(ComponentArgument.getResolvedComponent(ctx, "message", player))`を呼ぶだけの単純な構造であることを確認済み。
+> - 新規: `TellRawCommandMixin`(`common/mixin/`) — 上記ループ内の`sendSystemMessage`呼び出し1箇所のみを`@Redirect`。コマンドフィードバック等は一切巻き込まない。
+> - 新規: `TellrawTranslationCoordinator`(`common/text/`) — `ServerChatTranslationCoordinator`(Phase 6)と同じ「受信者ごとに遅延翻訳して配信」パターンを踏襲。`PlayerChatMessage`の署名保持が不要な分、`withUnsignedContent`等は使わずシンプルに新しい`Component`で`sendSystemMessage`を再度呼ぶだけで済む。
+> - 新規`ConfigModel#translateSystemMessages`(デフォルト`true`)。`serverSideChatTranslationEnabled`とは独立したトグル。`TranslationCategoriesScreen`にUIトグルも追加済み。
+> - 有効判定: `PerPlayerLanguageResolver#isEnabledForSystemMessages()`を新設(`translationEnabled` + `translateSystemMessages`のみで判定、`serverSideChatTranslationEnabled`とは無関係)。per-player opt-outは既存の`PlayerTranslationSettingsManager#enabled()`を共有利用(tellraw専用の別opt-outは設けていない)。
+> - 永続キャッシュ: ユーザー決定により対象(`persistable=true`)。tellrawは固定/繰り返しの告知文が多く、再起動・別プレイヤー間でのキャッシュ再利用に価値があるとの判断。
+> - **未検証のまま残した点(CLAUDE.md §3に従い正直に記載)**: `ServerPlayer#sendSystemMessage(Component)`が切断済みプレイヤーに対して安全かどうかは`javap`未確認。`recipient.connection != null`のガードを防御的に入れているが、これ自体が確認済みの代替策ではない。
+> - **実機確認済み**: dedicated server + クライアントで`/tellraw @a Home`実行、`ホーム (home)`のように正しく翻訳されることを確認。通常のコマンドフィードバックが翻訳対象に巻き込まれないこと(Option Aの意図通り)も確認。
+> 
+> ### 2. M-key言語自動同期(新規要望) — 実装・実機確認済み
+> 
+> **背景**: tellraw実装の実機検証中、`forcedTargetLanguage`をクライアント側`M`キー設定でのみ設定しても、これはあくまでクライアント自身がクライアント側翻訳に使う個人設定であり、サーバー側per-player翻訳(chat/tellraw)の解決には一切関与しないことが判明(`fabric/run`と`fabric/run-server`のconfig.jsonが別プロセス・別ファイルであるため)。ユーザーから「`/alltranslator language`を打ち忘れるので、サーバーでも普段使いのMキー設定をそのまま使いたい。ただしサーバー全体の既定値(`forcedTargetLanguage`)を変えたいわけではない」との要望があり、以下を実装した。
+> 
+> - 新規C2Sペイロード`PlayerLanguageSyncPayloads.Sync(String languageCode)`(`network/`)。`javap`で確認したArchitectury `NetworkManager.registerC2S`/`sendToServer`/`canServerReceive(CustomPacketPayload.Type<?>)`(単一引数、`Side`引数なしの推測ミスを`javap`で修正した)を使用。API設定等は一切乗らず、言語コード文字列のみを送受信。
+> - `PlayerTranslationSettings`に新フィールド`autoSyncedLanguage`を追加。既存の`languageOverride`(`/alltranslator language`専用)とは意図的に別フィールドとして分離し、「自動同期の値が、明示コマンドで選んだ値を不用意に上書きしてしまう」ことを構造的に防止した。
+> - `PerPlayerLanguageResolver#resolve()`の優先順位を更新: **`languageOverride`(明示コマンド) > `autoSyncedLanguage`(自動同期) > `forcedTargetLanguage`(サーバー既定値) > vanilla同期 > `en_us`**。
+> - 送信タイミング: (a) Architectury共通`ClientPlayerEvent.CLIENT_PLAYER_JOIN`(`javap`で`LocalPlayer`単一引数のシンプルなコールバックであることを確認済み)経由でログイン時に自動送信、(b) `AllTranslatorConfigScreen`(Mキー画面)の保存時にも再送信し、接続中に設定変更した場合も再接続不要で即座に反映されるようにした。
+> - 新規クライアント専用ヘルパー`PlayerLanguageSyncClient`(`client/`)。`forcedTargetLanguage`が空(null)の場合は空文字列として送信し、サーバー側は空文字列を受け取ると`autoSyncedLanguage`をクリアする(Mキー設定を「auto」に戻せば、下位の優先順位に正しくフォールバックする)。
+> - **実機確認済み(マルチプレイ含む)**:
+>   - `/alltranslator language`を一切使わず、Mキーで`ja`と設定するだけで、`home`/`/tellraw @a Home`が`ホーム (home)`のように正しく翻訳されることを確認(サーバー側`config.json`に`forcedTargetLanguage`が存在しない状態で)。
+>   - `player-settings.json`に`autoSyncedLanguage`が`languageOverride`とは独立したキーとして正しく保存されることを確認(例: `{"languageOverride": "en_us", "autoSyncedLanguage": "ja"}`)。
+>   - 優先順位の実証: `/alltranslator language en`実行後(Mキー設定は`ja`のまま変更せず)、`my friend`が`My friend (my friend)`と**翻訳されず英語のまま**表示されることを確認 — `languageOverride`が`autoSyncedLanguage`より正しく優先されることの証明。
+>   - **複数人マルチプレイでも問題なく機能することを確認**(各プレイヤーが自分のUUIDキー配下に独立して`autoSyncedLanguage`を持つため、他プレイヤーに影響しない設計が実証された)。
+> 
+> ### Changed/Created Files
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/mixin/TellRawCommandMixin.java`
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/text/TellrawTranslationCoordinator.java`
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/network/PlayerLanguageSyncPayloads.java`
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/network/PlayerLanguageSyncNetworking.java`
+> - 新規: `common/src/main/java/com/kiyo/alltranslator/client/PlayerLanguageSyncClient.java`
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/config/ConfigModel.java`(`translateSystemMessages`追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/server/PerPlayerLanguageResolver.java`(`isEnabledForSystemMessages()`追加、`resolve()`優先順位に`autoSyncedLanguage`挿入)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/server/PlayerTranslationSettings.java`(`autoSyncedLanguage`フィールド追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/server/PlayerTranslationSettingsManager.java`(`setAutoSyncedLanguage()`追加)
+> - 変更: `common/src/main/resources/alltranslator.mixins.json`(`TellRawCommandMixin`登録)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/client/gui/TranslationCategoriesScreen.java`(システムメッセージトグル追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/client/gui/AllTranslatorConfigScreen.java`(保存時に`PlayerLanguageSyncClient.sendCurrentLanguage()`呼び出し追加)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/client/AllTranslatorClientCore.java`(`ClientPlayerEvent.CLIENT_PLAYER_JOIN`配線)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/AllTranslatorCore.java`(`TellrawTranslationCoordinator`/`PlayerLanguageSyncNetworking`配線)
+> - 変更: `common/src/main/resources/assets/alltranslator/lang/en_us.json`/`ja_jp.json`(新規キー追加)
+> 
+> ### Testing Status
+> - `./gradlew build`(fabric+neoforge+common): 成功
+> - tellraw翻訳: 実機確認済み(Fabricのみ、dedicated server + 単一クライアント)
+> - M-key自動同期: 実機確認済み(Fabric、マルチプレイ含む、優先順位ロジックの実証も完了)
+> - **NeoForge側: 両機能とも未実施**(今回のセッションもFabric側のみで検証。既存の持ち越し事項と同列)
+> 
+> ### 既知の制限・次回持ち越し
+> - `ServerPlayer#sendSystemMessage`が切断済みプレイヤーに対して安全かどうか未検証(`TellrawTranslationCoordinator`のJavadoc参照)。
+> - tellrawの永続キャッシュはchat同様`§19`のcategory/namespace未実装のフラットキー方式のまま(プロジェクト全体で共通の既知の制限)。
+> - NeoForge側の実機確認(tellraw・M-key自動同期の両方)が未実施。
+> 
+> ## Next Phase(このセッション終了時点、最新)
+> 
+> 今回完了: Phase 14項目7(tellraw翻訳、Option A)、M-key言語自動同期(新規要望)。
+> 
+> 残るPhase 14タスク:
+> 1. Toast/Advancement翻訳対応(未着手)
+> 2. チャット二重翻訳の恒久修正(新規S2Cペイロード、部分対応のみ)
+> 3. SERVER_PROXY残作業(失敗/タイムアウト実機確認、NeoForge側)
+> 4. リモートサーバー設定画面の残確認(非OP拒否、NeoForge側)
+> 6. ボスバー名翻訳の実装(`javap`調査から、方針は「対応する」で確定済み)
+> 7. ~~tellraw翻訳~~ → 完了
+> 8. **新規**: 今回実装したtellraw・M-key自動同期のNeoForge側実機確認(未実施)
+> 
+> ## 【完了】マイナー言語の可読名フォールバック(LanguageResolver#toReadableName)
+> 
+> `LanguageResolver#toReadableName()`(プロンプトベース3プロバイダ専用: OpenAiCompatibleProvider/AnthropicProvider/GeminiProvider)に、READABLE_NAMESテーブルに存在しない言語コード向けの動的フォールバックを実装した。DeepL/GoogleCloudV2/GoogleWebFreeは言語コードをAPIパラメータとして渡す専用プロトコルのため、この変更の対象外(変更なし)。
+> 
+> **作業前の実地確認(CLAUDE.md §3、推測禁止)**: 実装前にJDK 25で`java.util.Locale`の挙動を単体テストプログラムで確認した:
+> - MCの`xx_yy`(アンダースコア、小文字region)をハイフン化して`Locale.forLanguageTag("xx-yy")`に渡すだけで正しく解決される(region部分の大文字小文字は非区別と実証。`forLanguageTag("ja-jp")` → `getDisplayLanguage(Locale.ENGLISH)` = `"Japanese"`)。
+> - テーブルにない実在言語(`km_kh`=クメール語)は`"Khmer"`に正しく解決されることを確認。
+> - MC独自の非標準コード`en_pt`(Pirate Speak)は言語サブタグ`en`のみが解釈され`"English"`に解決される(`pt`部分はISOポルトガル語ではなくMC独自のregionマーカーであり、これはLLMへの指示としてむしろ正しい)。
+> - **失敗検出シグナルの実証**: Localeが認識できない言語コード(`xx_yy`)を渡すと、`getDisplayLanguage()`は空文字列や例外ではなく**言語サブタグ自体をそのまま返す**(`"xx"`)。そのため「解決失敗」の判定は「表示名が空、または解決後の言語サブタグと大小無視で一致する」ことで行う設計にした。
+> - 空文字列入力は`Locale.forLanguageTag("")`が`und`(undefined)になり、言語サブタグ自体が空になることを確認済み。空チェックで別途ガードしている。
+> 
+> **実装(3段階フォールバック、既存の「見つからなければ素通し」という安全側設計は維持)**:
+> 1. `READABLE_NAMES`テーブル(キュレーション済み、既存動作は完全に不変)
+> 2. ヒットしない場合、新設の`resolveViaLocale()`が動的にLocale解決を試みる
+> 3. それでも解決できない場合はコードそのものを返す(現状の挙動を維持)
+> 
+> `resolveViaLocale()`は例外を握りつぶし、翻訳解決処理自体を絶対に止めない設計(既存の`resolveTargetLanguage()`/`resolveLiveClientLanguage()`と同じ防御的スタイルを踏襲)。
+> 
+> **重要な区別(ユーザーとの合意事項、README/CHANGELOG記載時も維持すること)**: これは「LLMへの指示(プロンプト)が正しく伝わるようにする」対処であり、「マイナー言語の翻訳品質そのものを保証する」対処ではない。指示が正しく伝わった後の実際の翻訳精度は、使用するモデル自身がその言語をどれだけ学習しているかに依存する(既存の「ローカル7Bモデルの翻訳品質のばらつき」既知の制限と同種の限界であり、これを解消するものではない)。
+> 
+> **未実施**: 実機でのマルチプレイ確認(テーブルにない言語コードを実際にforcedTargetLanguage/M-key同期経由で指定し、プロンプトベースプロバイダで実際に翻訳させての確認)。`./gradlew :fabric:build`は成功、コンパイルエラーなしのみ確認済み。次回、実機での動作確認を推奨(必須ではない、ロジック自体はLocale標準APIの実地確認済み挙動に基づく)。
+> 
+> ### Changed Files
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/lang/LanguageResolver.java`(`toReadableName()`を3段階フォールバックに変更、`resolveViaLocale()`新設)
+> 
+> ## 【方針決定の追記】マイナー言語の可読名フォールバック(次回実装予定)
+> 
+> `LanguageResolver#toReadableName()`(プロンプトベース3プロバイダ: OpenAiCompatibleProvider/AnthropicProvider/GeminiProvider専用)の`READABLE_NAMES`テーブルに載っていない言語コードが選ばれた場合、現状は言語コードの文字列(例: `km_kh`)がそのままLLMへのプロンプトに使われてしまい、翻訳先言語がLLMに正しく伝わらない問題がある(DeepL/GoogleCloudV2/GoogleWebFreeは言語コードをパラメータとして渡す専用APIのため、この問題自体が存在しない)。
+> 
+> **ユーザーと相談の上、対応する方針で確定した。**
+> 
+> ### 対処方針(次回実装)
+> 
+> `READABLE_NAMES`テーブルに存在しない言語コードが来た場合、コードをそのまま返す代わりに、Java標準の`java.util.Locale`(`Locale.getDisplayLanguage(Locale.ENGLISH)`等、実際のAPIシグネチャは次回`javap`で確認してから使用- CLAUDE.md §3)による自動フォールバックを追加する。
+> 
+> - 優先順位: 既存`READABLE_NAMES`テーブルにヒット → それを使う。ヒットしない → `Locale`ベースで動的に英語表記の言語名を解決 → それも失敗すれば現状通りコードをそのまま返す(3段階、既存の「見つからなければ素通し」という安全側の設計は維持)。
+> - Minecraftの言語コード形式(`xx_yy`、アンダースコア区切り)とJavaの`Locale`が期待する形式(`xx-YY`、ハイフン区切りが一般的)の対応関係は未確認のため、次回`javap`/実地確認から着手すること。
+> - **注意点(ユーザーとの会話で明確化済み)**: これは「LLMへの指示が正しく伝わるようにする」対処であり、「マイナー言語の翻訳品質そのものを保証する」対処ではない。指示が正しく伝わった後の実際の翻訳精度は、使用するモデル自身がその言語をどれだけ学習しているかに依存する(ローカル小型モデルでは限界がある、既存の「ローカル7Bモデルの翻訳品質のばらつき」既知の制限と同種の限界)。README/CHANGELOGに記載する際もこの区別を明記すること。
+> - 対象は`toReadableName()`のみ。`normalize()`(短縮形→正式コード変換、`COMMON_ALIASES`)側は、vanilla同期言語(`ServerPlayer#clientInformation().language()`)が常に正しいフル形式のコードを返す仕様上、テーブル不足による実害がほぼ生じないため、優先度低・今回の対応スコープ外と判断。
+> 
+> ## 【セッション記録】Toast/Advancement翻訳タスク一式(このセッションで実施した内容の総括)
+> 
+> このセッションでは当初「Toast/Advancement翻訳対応」1件のみを開始タスクとして着手したが、
+> 実機テストの過程で多数の関連バグが見つかり、芋づる式に修正した。以下は完了した内容と、
+> 未解決のまま次セッションに持ち越す調査の両方を記録する。
+> 
+> ### 完了した実装
+> 
+> 1. **実績トースト通知の翻訳**(`AdvancementToastMixin`)
+>    - `AdvancementToast#extractRenderState()`内の`DisplayInfo#getTitle()`と
+>      `AdvancementType#getDisplayName()`(「Advancement made!」等の見出し)の両方を`@Redirect`
+>    - `ConfigModel#translateAdvancementToasts`(デフォルトON)
+> 
+> 2. **レシピ解放トースト通知の翻訳**(`RecipeToastMixin`)
+>    - `RecipeToast`の`private static final Component TITLE_TEXT/DESCRIPTION_TEXT`を`@Shadow`
+>      + フィールド用`@Redirect`(`at = @At(value = "FIELD", ...)`)で対応。javapで
+>      `private`確認済み、直接参照はコンパイルエラーになるため`@Shadow`必須という学びがあった。
+>    - `ConfigModel#translateRecipeToasts`(デフォルトON)
+> 
+> 3. **実績チャット告知の翻訳**(`AdvancementBroadcastMixin` +
+>    `AdvancementAnnounceTranslationCoordinator`)
+>    - `PlayerAdvancements#lambda$award$0`内の`PlayerList#broadcastSystemMessage(Component,
+>      boolean)`(2引数版)を3引数版(`Function<ServerPlayer,Component>`)に差し替える`@Redirect`
+>    - 複数の実バグを発見・修正(詳細は下記「今回学んだ重要な教訓」参照):
+>      - プレイヤー名がAPI翻訳で誤って変換される問題 → 直接protectトークンで保護する方式に修正
+>      - 既存訳(バニラ`ja_jp`)チェックを一切していなかった問題 →
+>        `ExistingTranslationChecker`を経由するよう修正、既存訳ヒット時はAPI呼び出しなしで
+>        即座に1行だけ表示(2段階配信をスキップ)
+>      - 実績名の色/ホバーイベント(説明文表示)が失われる問題 → `String.format`ではなく
+>        `Component`ツリーとして`args`を再構成する`formatExistingTemplateAsComponent()`に変更
+>      - 「(原文)」併記を削除(2段階配信では既に原文が一度表示されているため不要と判断)
+> 
+> 4. **`/title`(title/subtitle/actionbar)の翻訳**(`TitleCommandMixin` +
+>    `TitleTranslationCoordinator`)
+>    - `TitleCommand#showTitle()`内の`ComponentUtils.resolve(ResolutionContext, Component)`を
+>      `@Redirect`。受信者(`ServerPlayer`)はMixinExtrasの`@Local`で捕捉(このプロジェクト初の
+>      `@Local`使用、`common`モジュールのcompileJavaで使用可能なことを事前にテストコードで確認済み)
+>    - **制約**: `/title`はBrigadierコマンドの同期実行内で送信されるため、翻訳(非同期)の完了を
+>      待てない(CLAUDE.md §7)。`TranslationService#peekCache()`(新設、キャッシュのみを同期的に
+>      覗く、API呼び出しなし)で「既にキャッシュ済みなら使う、無ければ原文のまま送り裏で翻訳を
+>      キックする」設計。**そのため同じ文言の`/title`を2回実行しないと初回は翻訳されない**
+>      (ユーザー確認済み、「諦めて原文を出す」でユーザー了承済みの仕様)。
+> 
+> 5. **`/msg`, `/tell`, `/w`, `/teammsg`の翻訳**(`MsgCommandMixin`, `TeamMsgCommandMixin`)
+>    - 両コマンドとも`ServerPlayer#sendChatMessage(OutgoingChatMessage, boolean,
+>      ChatType.Bound)`を直接呼んでおり、`PlayerListMixin`(通常チャット用)ではカバーされて
+>      いなかったため、それぞれ専用の`@Redirect`を追加。既存の`ServerChatTranslationCoordinator`
+>      をそのまま再利用。
+> 
+> 6. **設定トグルの統合・UI整理**(ユーザー要望)
+>    - 新規`ConfigModel#translatePrivateMessagesAndTitles`(デフォルトON)を新設し、
+>      `/tell`・`/msg`・`/w`・`/teammsg`・`/title`をこの1トグルに統合
+>      (`/tellraw`専用の既存`translateSystemMessages`とは分離したまま)
+>    - `TranslationCategoriesScreen`(Mキー)と`RemoteServerCategoriesScreen`(サーバー用設定)
+>      を2列レイアウトに変更。`RemoteServerCategoriesScreen`はこれまで`advancementToasts`/
+>      `recipeToasts`/`systemMessages`のトグルが抜け落ちていたため、最新の状態に追いつかせた。
+> 
+> 7. **バグ修正: プレイヤー名がEntity名翻訳に巻き込まれる問題**(`EntityMixin`)
+>    - `this instanceof Player`のインスタンスをentityNameInterceptorの対象から完全除外。
+> 
+> 8. **バグ修正: マイナー言語の可読名フォールバック**(`LanguageResolver#toReadableName()`)
+>    - プロンプトベース3プロバイダ(OpenAiCompatible/Anthropic/Gemini)向けに、
+>      `READABLE_NAMES`テーブルにない言語コードを`java.util.Locale`で動的解決するフォールバック
+>      を追加(3段階: テーブル → Locale動的解決 → コードそのまま)。javapで実地確認済み。
+> 
+> ### 今回学んだ重要な教訓(CLAUDE.md §3/§21に追記すべき内容)
+> 
+> - **`String.format(template, args)`にComponent型のargsをそのまま渡してはいけない**:
+>   `%s`変換は`Component#getString()`ではなく`Object#toString()`を呼ぶため、
+>   `TranslatableContents`のデフォルト`toString()`表現(`translation{key='...', args=[]}`という
+>   形式)がそのまま画面に表示される実バグを2箇所(`AdvancementAnnounceTranslationCoordinator`、
+>   `TranslatableTextInterceptor#reapplyArgsIfNeeded()`)で発見・修正した。Componentをargsとして
+>   scholarly `String.format`に渡す全てのコード箇所で、事前に`getString()`で平文化するか、
+>   Componentツリーとして再構成する必要がある。
+> 
+> - **ネストされたTranslatableContentsのargsは、ターゲット言語ではなく「クライアントの現在の
+>   表示言語」で解決されてしまう**: `Component#getString()`はMinecraftクライアント自身の
+>   ライブ表示言語設定に基づいて解決される。サーバー側翻訳モードでクライアント表示言語と
+>   ターゲット言語が異なる場合(例: クライアント=en_us、ターゲット=ja_jp)、ネストされた
+>   args内のComponent(例: `attribute.name.armor`)をそのまま`getString()`すると英語のままに
+>   なる。`TranslatableTextInterceptor#resolveArgPlainText()`を新設し、nested argが
+>   `TranslatableContents`ならそのキーを`ExistingTranslationChecker`でターゲット言語に対して
+>   個別に再解決するよう修正した。
+> 
+> - **一部のツールチップ行はルートComponentがTranslatableContentsではなく、実体はsibling
+>   として付いている**: 例えば攻撃力/攻撃速度のツールチップ行(`attribute.modifier.equals.0`,
+>   `.take.0`)は、ルートが空白のみの`LiteralContents`で、実際の`TranslatableContents`は
+>   siblingとして保持されている(鎧の`attribute.modifier.plus.0`は逆にルート自体が
+>   `TranslatableContents`だった)。`extractKey()`(`ItemTooltipTranslationHook`)と
+>   `findTranslatableContents()`(`TranslatableTextInterceptor`、新設)の両方をsibling対応に
+>   修正したが、**この修正後も一部のケースでAPIに送られてしまう不具合が未解決のまま残っている
+>   (下記「未解決の調査」参照)**。
+> 
+> ### 【未解決】次セッションで最優先の調査事項: 攻撃力/攻撃速度・一部ポーション効果がAPIに送られる
+> 
+> **症状**: 武器の攻撃力/攻撃速度ツールチップ行、および一部のポーション効果("効果:"の次の行)が、
+> 既存のバニラ`ja_jp`翻訳があるにもかかわらず、既存訳経由ではなくAPI(LLM)に送信されてしまう。
+> 
+> **このセッションで確認できた事実**:
+> - `ItemTooltipTranslationHook#extractKey()`をsibling対応に修正済み。実機ログで
+>   `attribute.modifier.plus.0`/`.take.0`/`.equals.0`いずれも`extractedKey`は正しく
+>   非nullで取得できている(sibling修正は機能している)ことを確認済み。
+> - にもかかわらず、ログ上で該当行の直後に`[AT-DEBUG] inFlight++`(API呼び出し発生)が
+>   記録されるケースがある。ただし該当行がどれか(攻撃力/攻撃速度そのものか、それとも
+>   ツールチップの他の行=例えば風味テキストやポーションの他の効果行か)を、ログの粒度不足
+>   (1回のツールチップ表示で大量の行がログに出るため、`inFlight++`の直前行が本当に原因の行か
+>   ログの並び順だけでは断定できない)により、まだ完全には特定できていない。
+> - クライアント表示言語・ターゲット言語ともに終始`ja_jp`/`ja_jp`の組み合わせで固定して
+>   検証していた(この点はユーザーに確認済み、言語切り替えは関係ない)。
+> - `en_us.json`(バニラ、jarにバンドル)には`attribute.modifier.equals.0`
+>   = `"%s %s"`、`potion.whenDrank` = `"When Applied:"`など該当キーは全て存在することを
+>   確認済み。`ja_jp.json`の実体ファイルパスは特定できなかった
+>   (`minecraft-client.jar`には同梱されておらず、`~/.gradle`配下の検索でも見つからなかった -
+>   実行時にランタイムでダウンロード/ロードされる可能性がある。`MinecraftLanguageDataSource`は
+>   `Minecraft.getInstance().getResourceManager().listResources("lang", ...)`経由で取得して
+>   いるため、実際のファイルの物理的な所在よりも、ResourceManager経由で本当に`ja_jp`の
+>   データが読み込めているかどうかを直接確認する方が確実)。
+> 
+> **次にやるべきこと(推奨アプローチ)**:
+> 1. まず`ExistingTranslationChecker.check(key, "ja_jp")`が実際にどんな値を返しているか
+>    (`null`なのか、有効な値なのか)を、該当行の`key`(例: `attribute.modifier.equals.0`)に
+>    絞って直接ログ出力し、**「既存訳が見つからずAPIに落ちている」のか「既存訳は見つかっている
+>    のに何らかの理由でAPI経路に進んでしまっている」のか**をまず切り分けること。
+> 2. `LocalizedTextResolver.resolve(key, sourceText)`の90〜92行目
+>    (`existingTranslationChecker.check()`がnullでなければ即座に`completedFuture`で返す分岐)
+>    に一時ログを入れ、`key`・`existing`の値をその場で確認するのが最も確実。
+> 3. ログを見る際は、`[AT-DEBUG-6]`のような「全行ダンプ」ではなく、**該当キーのみに絞った
+>    ログ**(例: `if (key != null && key.startsWith("attribute.modifier"))`のような条件)に
+>    すること。今回のセッションでは1回のツールチップ表示で大量の行がログに出て、
+>    `inFlight++`との対応関係を目視で追うのが困難だった。ログの行数を減らす工夫が必須。
+> 4. 診断時は、チャットに貼り付ける際に**大量のログをそのまま貼ると添付ファイル扱いになり
+>    読み取れないことがある**(このセッションで複数回発生した問題)。`grep`で該当キーのみに
+>    絞り込み、10行以内程度になるよう工夫してから貼り付けること。
+> 5. 前回セッションで残っていた診断ログ(`[AT-DEBUG-6]`)は`ItemTooltipTranslationHook.java`に
+>    **残ったままの可能性がある**。次セッション開始時にまず
+>    `grep -n "AT-DEBUG-6" common/src/main/java/com/kiyo/alltranslator/client/ItemTooltipTranslationHook.java`
+>    で確認し、残っていれば全行ダンプ版から上記3のような絞り込み版に置き換えるか、
+>    一旦削除してから絞り込んだログを入れ直すこと。
+> 
+> ## 【Phase 14セッション: 攻撃力/攻撃速度・一部ポーション効果がAPIに送られる問題(前セッション末尾の最優先調査事項) — 解決】
+> 
+> ### 根本原因の特定
+> 
+> 前セッション末尾の指示通り、`ItemTooltipTranslationHook`（`[AT-DEBUG-6]`全行ダンプ）を
+> `attribute.modifier`/`potion.`キーのみに絞った`[AT-DEBUG-7]`ログに置き換え、続けて
+> `LocalizedTextResolver.resolve()`の`existingTranslationChecker.check()`直後にkey/existingを
+> 出力する診断ログを追加して切り分けを実施した。
+> 
+> 最初のログで「`existing`が`null`」と「`existing`が非nullだが後続で握りつぶされている」の
+> 両パターンが混在していることが分かり、さらに`ExistingTranslationChecker.check()`内部の
+> `targetValue`/`defaultValue`そのものを直接ログ出力したところ、原因が判明した:
+> 
+> **`ExistingTranslationChecker.check()`(Phase 0設計、CLAUDE.md §3準拠のつもりだった)は
+> 「ターゲット言語の値がen_usのフォールバック値と完全一致する場合は無効(未翻訳のまま)」と
+> みなして`null`を返す実装だったが、これは誤りだった。** 実機ログで確認した実際の値:
+> attribute.modifier.equals.0: targetValue=[%s %s] defaultValue=[%s %s] → 完全一致(誤ってnull扱い)
+> attribute.modifier.plus.2: targetValue=[+%s%% %s] defaultValue=[+%s%% %s] → 完全一致(誤ってnull扱い)
+> attribute.modifier.take.2: targetValue=[-%s%% %s] defaultValue=[-%s%% %s] → 完全一致(誤ってnull扱い)
+> potion.withAmplifier: targetValue=[%s %s] defaultValue=[%s %s] → 完全一致(誤ってnull扱い)
+> 
+> attribute.modifier.plus.0: targetValue=[%2
+> 𝑠
+> +
+> s+s] defaultValue=[+%s %s] → 不一致(正常に既存訳ヒット)
+> attribute.modifier.take.0: targetValue=[%2
+> 𝑠
+> −
+> s−s] defaultValue=[-%s %s] → 不一致(正常に既存訳ヒット)
+> potion.whenDrank: targetValue=[効果：] defaultValue=[When Applied:] → 不一致(正常に既存訳ヒット)
+> potion.withDuration: targetValue=[%s（%s）] defaultValue=[%s (%s)] → 不一致(正常に既存訳ヒット)
+> 
+> 
+> 上段4キーは**本物のバニラja_jp翻訳が存在するにもかかわらず**、たまたま語順・記号を変える
+> 余地がない単純なフォーマットテンプレート(`%s %s`等)であるためen_usと文字列が完全一致し、
+> 「フォールバック未翻訳」という誤判定でAPIに送られてしまっていた。`CompositeLanguageDataSource`
+> のJavadocが当時「二つの異なるソースが偶然同じテキストを返すケースはまれなエッジケースとして
+> 許容する」と明記していたが、実機検証の結果これは全く「まれ」ではなく、フォーマットテンプレート
+> 系のキーでは普通に起こりうることが判明した。
+> 
+> ### 修正内容
+> 
+> - `ExistingTranslationChecker.check()`から「ターゲット値とen_usフォールバック値が一致すれば
+>   無効」というヒューリスティック自体を削除。`lookupTargetLanguageValue(key, targetLang)`は
+>   そもそも「そのターゲット言語自身のデータに実在する値のみ」を返す契約であり
+>   (`MinecraftLanguageDataSource`/`CustomLanguageFileManager`のいずれもen_usへの自動
+>   フォールバックをLanguageDataSource層で行っていないことをソース確認済み)、この二重チェック
+>   は最初から不要かつ誤りだった。有効判定は「キーが存在し値が空でなく、キー自体の丸写しでも
+>   ない」の2条件のみに単純化。
+> - `CompositeLanguageDataSource`のJavadocを実態に合わせて訂正(「まれなエッジケース」という
+>   誤った前提の記述を削除し、修正の経緯を記録)。
+> - 診断用に追加した`[AT-DEBUG-7]`ログ(`ItemTooltipTranslationHook`/`LocalizedTextResolver`/
+>   `ExistingTranslationChecker`の3箇所)は原因特定後すべて削除済み(CLAUDE.md §21・§23の
+>   教訓を踏まえ、本セッション内で後始末まで完了)。
+> 
+> ### 実機確認結果
+> 
+> - **クライアント日本語・対象言語日本語**: 攻撃力/攻撃速度・ウェイポイント伝達距離・ポーション
+>   効果のツールチップが、API呼び出し(inFlight++)を発生させずバニラja_jp表記になることを確認。
+> - **クライアント英語・対象言語日本語**(本来の主症状): 同箇所が正しく日本語化されることを確認。
+> - `./gradlew :fabric:build` / `./gradlew :neoforge:build`: 両方成功(commonモジュールの変更の
+>   ためNeoForge側もコンパイル確認、ただし実機でのNeoForge検証は未実施 - 既存の持ち越し事項と同列)。
+> 
+> ### 教訓(CLAUDE.md §3/§21に追記すべき内容)
+> 
+> - **「ターゲット言語の値がen_usと一致する」ことは「未翻訳のフォールバックが漏れている」ことの
+>   証拠にはならない**: 語順や単語選択の余地がない短いフォーマットテンプレート・記号のみの
+>   文字列では、正しく翻訳された結果でも偶然en_usと同一になり得る。既存訳の有効性は
+>   「そのデータソースが当該言語のデータとして実際に保持しているか」で判定すべきであり、
+>   他言語の値との文字列比較で二次判定を行うと、この種の正当なケースを誤検出する。
+> - 前セッションで「攻撃力/攻撃速度は既存訳から漏れている(誤ってAPIに送られる)」という
+>   症状が確認されていたが、原因は`extractKey()`のsibling対応(前セッションで既に修正済み)
+>   ではなく、その先の`ExistingTranslationChecker`側のロジックにあった。診断ログによる
+>   「どの段階で値が失われているか」の切り分け(existing checkerの入力/出力を直接ログする)
+>   が、憶測で修正範囲を広げるより早く原因特定につながった。
+> 
+> ### Changed Files
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/lang/ExistingTranslationChecker.java`
+>   (en_us一致ヒューリスティックを削除、Javadoc更新)
+> - 変更: `common/src/main/java/com/kiyo/alltranslator/lang/CompositeLanguageDataSource.java`
+>   (Javadoc訂正)
+> - (診断ログの追加・削除のみで実質変更なし) `common/src/main/java/com/kiyo/alltranslator/client/ItemTooltipTranslationHook.java`
+> - (診断ログの追加・削除のみで実質変更なし) `common/src/main/java/com/kiyo/alltranslator/lang/LocalizedTextResolver.java`
+> 
+> ### Testing Status
+> - `./gradlew :fabric:build`: 成功
+> - `./gradlew :neoforge:build`: 成功(コンパイルのみ、実機未確認)
+> - Fabric実機確認: 完了(クライアント日本語/対象言語日本語、クライアント英語/対象言語日本語の
+>   両パターンで問題解消を確認)
+> - NeoForge実機確認: 未実施(既存の持ち越し事項と同列)
+> 
+> ## Next Phase
+> 
+> 今回完了: 前セッション末尾の最優先調査事項(攻撃力/攻撃速度・一部ポーション効果のAPI誤送信)。
+> 
+> 残るPhase 14タスク(変更なし、前回リストから継続):
+> 1. Toast/Advancement翻訳対応の残課題があれば確認(前セッションで概ね完了と記録されているため優先度低)
+> 2. チャット二重翻訳の恒久修正(新規S2Cペイロード、シングルプレイ以外は部分対応のみ)
+> 3. SERVER_PROXY残作業(失敗/タイムアウト実機確認、NeoForge側)
+> 4. リモートサーバー設定画面の残確認(非OP拒否、NeoForge側)
+> 5. ボスバー名翻訳の実装(方針は「対応する」で確定済み、`javap`調査から未着手)
+> 6. tellraw・M-key自動同期のNeoForge側実機確認(未実施)
+> 7. **新規**: 今回の`ExistingTranslationChecker`修正がNeoForge側でも同様に機能するか(commonのみの変更のため動作する可能性は高いが、CLAUDE.md §21に従い実機未確認のまま「確認済み」とは書かない)

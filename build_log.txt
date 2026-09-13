@@ -1,7 +1,7 @@
 
 > Configure project :
 Architect Plugin: 3.5.169
-Architectury Loom: 1.17.491
+Architectury Loom: 1.17.493
 
 > Task :fabric:processResources UP-TO-DATE
 > Task :fabric:processIncludeJars UP-TO-DATE
@@ -12,23 +12,23 @@ Architectury Loom: 1.17.491
 > Task :common:processResources UP-TO-DATE
 > Task :common:classes
 > Task :common:processIncludeJars UP-TO-DATE
-> Task :common:jar
-> Task :fabric:compileJava
-> Task :fabric:classes
+> Task :fabric:compileJava UP-TO-DATE
+> Task :fabric:classes UP-TO-DATE
 > Task :fabric:jar UP-TO-DATE
 > Task :fabric:compileTestJava NO-SOURCE
 > Task :fabric:testClasses UP-TO-DATE
 > Task :fabric:test NO-SOURCE
 > Task :fabric:check UP-TO-DATE
+> Task :common:jar
 
 > Task :common:transformProductionFabric
-[Architectury Transformer] Read classpath in 2.933 s
-[Architectury Transformer] Transformed jar with 4 transformer(s) in 3.067 s
+[Architectury Transformer] Read classpath in 4.333 s
+[Architectury Transformer] Transformed jar with 4 transformer(s) in 4.451 s
 
 > Task :fabric:shadowJar
 > Task :fabric:assemble
 > Task :fabric:build
 
-BUILD SUCCESSFUL in 11s
-11 actionable tasks: 5 executed, 6 up-to-date
+BUILD SUCCESSFUL in 9s
+11 actionable tasks: 4 executed, 7 up-to-date
 Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html

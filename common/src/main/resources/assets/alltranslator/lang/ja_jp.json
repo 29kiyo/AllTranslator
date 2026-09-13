@@ -62,6 +62,7 @@
   "gui.alltranslator.categories.advancement_toasts": "実績トースト通知",
   "gui.alltranslator.categories.recipe_toasts": "レシピ解放トースト通知",
   "gui.alltranslator.categories.private_messages_and_titles": "個人メッセージ&タイトル (/tell, /msg, /w, /teammsg, /title)",
+  "gui.alltranslator.categories.boss_bar_names": "ボスバー名",
   "gui.alltranslator.serverconfig.title": "All Translator サーバー設定",
   "gui.alltranslator.config.server_proxy": "サーバー経由翻訳",
   "gui.alltranslator.config.server_proxy_label": "サーバー経由翻訳",

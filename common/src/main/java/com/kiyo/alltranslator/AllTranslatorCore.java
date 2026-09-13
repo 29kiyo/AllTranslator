@@ -71,6 +71,10 @@ public final class AllTranslatorCore {
     // Phase 14 (Toast/Advancement translation task, follow-up): same pattern, backs
     // RecipeToastMixin ("New Recipes Unlocked!" toast).
     private static TranslatableTextInterceptor recipeToastInterceptor;
+    // Phase 14 (Boss bar name translation): installed only by
+    // AllTranslatorClientCore#init() (client-side only), same null-on-dedicated-server
+    // guarantee as the interceptors above. Backs BossHealthOverlayMixin.
+    private static TranslatableTextInterceptor bossBarNameInterceptor;
 
     // Phase 5: installed only by AllTranslatorClientCore#init() (client-side only),
     // same null-on-dedicated-server guarantee as the interceptors above.
@@ -240,6 +244,13 @@ public final class AllTranslatorCore {
     }
 
     public static TranslatableTextInterceptor recipeToastInterceptor() { return recipeToastInterceptor; }
+
+    /** Called only from AllTranslatorClientCore#init() (client-side only). */
+    public static synchronized void installBossBarNameInterceptor(TranslatableTextInterceptor interceptor) {
+        bossBarNameInterceptor = interceptor;
+    }
+
+    public static TranslatableTextInterceptor bossBarNameInterceptor() { return bossBarNameInterceptor; }
 
     /** Called only from AllTranslatorClientCore#init() (client-side only). */
     public static synchronized void installChatTranslationCoordinator(ChatTranslationCoordinator coordinator) {
