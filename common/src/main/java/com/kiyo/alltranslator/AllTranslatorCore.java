@@ -10,6 +10,8 @@ import com.kiyo.alltranslator.lang.LanguageResolver;
 import com.kiyo.alltranslator.lang.LocalizedTextResolver;
 import com.kiyo.alltranslator.lang.MinecraftClientLanguageSupplier;
 import com.kiyo.alltranslator.lang.MinecraftLanguageDataSource;
+import com.kiyo.alltranslator.modjarlang.GeneratedLangPackStore;
+import com.kiyo.alltranslator.modjarlang.ModJarLangTranslationCoordinator;
 import com.kiyo.alltranslator.provider.ProviderFactory;
 import com.kiyo.alltranslator.server.PerPlayerLanguageResolver;
 import com.kiyo.alltranslator.server.PlayerTranslationSettingsManager;
@@ -56,6 +58,13 @@ public final class AllTranslatorCore {
     private static CustomLanguageFileManager customLanguageFileManager;
     private static ExistingTranslationChecker existingTranslationChecker;
     private static LocalizedTextResolver localizedTextResolver;
+    // Mod jar lang bulk translation: safe on both physical sides (pure file-path
+    // storage, no client-only Minecraft class touched) - see GeneratedLangPackStore's
+    // own Javadoc. The coordinator that actually DRIVES translation work, however, is
+    // client-only (installed only by AllTranslatorClientCore#init()), same
+    // null-on-dedicated-server pattern as chatTranslationCoordinator below.
+    private static GeneratedLangPackStore generatedLangPackStore;
+    private static ModJarLangTranslationCoordinator modJarLangTranslationCoordinator;
     private static ExecutorService executor;
 
     // Phase 4: installed only by AllTranslatorClientCore#init() (client-side only).
@@ -166,6 +175,8 @@ public final class AllTranslatorCore {
 
         localizedTextResolver = new LocalizedTextResolver(existingTranslationChecker, translationService, languageResolver);
 
+        generatedLangPackStore = new GeneratedLangPackStore(configDir);
+
         // Phase 6: server support. See ARCHITECTURE.md §9 (opt-in server-side chat
         // translation) and §8.2 (persistent cache world-save path).
         playerTranslationSettingsManager = new PlayerTranslationSettingsManager(configDir);
@@ -216,6 +227,7 @@ public final class AllTranslatorCore {
     public static CustomLanguageFileManager customLanguageFileManager() { return customLanguageFileManager; }
     public static ExistingTranslationChecker existingTranslationChecker() { return existingTranslationChecker; }
     public static LocalizedTextResolver localizedTextResolver() { return localizedTextResolver; }
+    public static GeneratedLangPackStore generatedLangPackStore() { return generatedLangPackStore; }
 
     /** Called only from AllTranslatorClientCore#init() (client-side only). */
     public static synchronized void installClientTextInterceptors(
@@ -258,6 +270,13 @@ public final class AllTranslatorCore {
     }
 
     public static ChatTranslationCoordinator chatTranslationCoordinator() { return chatTranslationCoordinator; }
+
+    /** Called only from AllTranslatorClientCore#init() (client-side only). */
+    public static synchronized void installModJarLangTranslationCoordinator(ModJarLangTranslationCoordinator coordinator) {
+        modJarLangTranslationCoordinator = coordinator;
+    }
+
+    public static ModJarLangTranslationCoordinator modJarLangTranslationCoordinator() { return modJarLangTranslationCoordinator; }
 
     // Phase 6 accessors (both physical sides; see field comments above).
     public static PlayerTranslationSettingsManager playerTranslationSettingsManager() { return playerTranslationSettingsManager; }

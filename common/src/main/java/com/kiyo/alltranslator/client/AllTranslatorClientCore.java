@@ -4,6 +4,8 @@ import com.kiyo.alltranslator.AllTranslatorCore;
 import com.kiyo.alltranslator.text.TranslatableTextInterceptor;
 import com.kiyo.alltranslator.text.ChatTranslationCoordinator;
 import net.minecraft.client.Minecraft;
+import com.kiyo.alltranslator.modjarlang.GeneratedLangPackRepositorySource;
+import com.kiyo.alltranslator.modjarlang.ModJarLangTranslationCoordinator;
 /**
  * Client-only bootstrap for Phase 4 text-interception hooks, Phase 5 chat translation,
  * and (Phase 8) the shared config screen's L-keybinding.
@@ -121,6 +123,25 @@ public final class AllTranslatorClientCore {
             mc.execute(() -> AllTranslatorErrorToast.show(
                     mc.gui.toastManager(), apiDisplayName, failureType, model.apiErrorToastSoundEnabled));
         });
+        // Mod jar lang bulk translation: coordinator is client-only (drives
+        // per-mod translation work using this client's own TranslationService/API
+        // config - ARCHITECTURE.md §9, entirely local, no server involvement needed).
+        ModJarLangTranslationCoordinator modJarLangCoordinator = new ModJarLangTranslationCoordinator(
+                AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.generatedLangPackStore());
+        AllTranslatorCore.installModJarLangTranslationCoordinator(modJarLangCoordinator);
+        // NOTE: registering GeneratedLangPackRepositorySource with
+        // Minecraft#getResourcePackRepository()#addPackFinder is done from EACH
+        // loader module (AllTranslatorFabricClient / AllTranslatorNeoForge), NOT
+        // here. PackRepository#addPackFinder is only public via NeoForge's access
+        // transformer - confirmed via javap: it is package-private on the raw
+        // (pre-AT) merged jar this common module compiles against, the exact same
+        // AT-gated situation as ServerPlayer#getLanguage() (see ARCHITECTURE.md
+        // §20.1) - so common code cannot call it directly. Fabric compiles/runs
+        // against a differently-obfuscated jar where it IS public, so this is not
+        // symmetric between loaders; each loader module calls it itself, both
+        // passing the exact same common GeneratedLangPackRepositorySource instance,
+        // obtained via AllTranslatorCore.generatedLangPackStore() below.
+
         AllTranslator.LOGGER.info("{} client-side text translation hooks installed "
                 + "(item tooltip: event-based, item/entity name: Mixin-based, chat: coordinator ready, "
                 + "config screen: L-key registered, error toast: wired)", AllTranslator.MOD_NAME);
