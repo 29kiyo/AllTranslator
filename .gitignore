@@ -36,3 +36,4 @@ Thumbs.db
 
 # All Translator local data (added starting Phase 2)
 config/alltranslator/credentials.json
+build_log.txt
