@@ -144,6 +144,10 @@ public final class ConfigModel {
      * meaningfully control).
      */
     public boolean translateBossBarNames = true;
+    /** Mod jar lang bulk translation: auto-show the confirmation screen on the title screen. */
+    public boolean modJarLangPromptEnabled = true;
+    /** Mod IDs the user unchecked in the confirmation screen; excluded from the auto prompt. */
+    public java.util.List<String> modJarLangIgnoredMods = new java.util.ArrayList<>();
 
     /** Phase 13: append " (original name)" after translated item names/tooltip first lines. Off by default. */
     public boolean showOriginalNameOnItems = false;

@@ -67,5 +67,16 @@
   "gui.alltranslator.config.server_proxy": "Server-Proxy Translation",
   "gui.alltranslator.config.server_proxy_label": "Server-Proxy Translation",
   "gui.alltranslator.apiedit.remote_key_notice": "API Key: set locally on the server (M key)",
-  "gui.alltranslator.serverconfig.window_too_small": "Window too small for this screen. Please resize/maximize your window."
+  "gui.alltranslator.serverconfig.window_too_small": "Window too small for this screen. Please resize/maximize your window.",
+  "gui.alltranslator.modjarlang.title": "Mod Language Files Available for Translation",
+  "gui.alltranslator.modjarlang.description": "These mods only ship English text. Selected mods will be translated with your configured API (this uses API requests).",
+  "gui.alltranslator.modjarlang.select_all": "Select All",
+  "gui.alltranslator.modjarlang.select_none": "Deselect All",
+  "gui.alltranslator.modjarlang.translate_selected": "Translate Selected (%s)",
+  "gui.alltranslator.modjarlang.later": "Skip This Time",
+  "gui.alltranslator.modjarlang.never": "Don't Ask Again",
+  "gui.alltranslator.modjarlang.progress": "Translating... %s / %s mods",
+  "gui.alltranslator.modjarlang.cancel": "Cancel",
+  "gui.alltranslator.modjarlang.done": "Done: %s generated, %s skipped",
+  "gui.alltranslator.modjarlang.reload": "Apply (Reload Resources)"
 }

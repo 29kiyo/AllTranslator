@@ -67,5 +67,16 @@
   "gui.alltranslator.config.server_proxy": "サーバー経由翻訳",
   "gui.alltranslator.config.server_proxy_label": "サーバー経由翻訳",
   "gui.alltranslator.apiedit.remote_key_notice": "APIキー: サーバー本体でMキーから設定してください",
-  "gui.alltranslator.serverconfig.window_too_small": "ウィンドウが小さすぎます。ウィンドウを大きくしてください。"
+  "gui.alltranslator.serverconfig.window_too_small": "ウィンドウが小さすぎます。ウィンドウを大きくしてください。",
+  "gui.alltranslator.modjarlang.title": "翻訳可能なModの言語ファイルが見つかりました",
+  "gui.alltranslator.modjarlang.description": "以下のModは英語の言語ファイルのみを同梱しています。選択したModを設定済みのAPIで翻訳します(APIリクエストを消費します)。",
+  "gui.alltranslator.modjarlang.select_all": "全選択",
+  "gui.alltranslator.modjarlang.select_none": "全解除",
+  "gui.alltranslator.modjarlang.translate_selected": "選択したModを翻訳 (%s)",
+  "gui.alltranslator.modjarlang.later": "今回はスキップ",
+  "gui.alltranslator.modjarlang.never": "今後表示しない",
+  "gui.alltranslator.modjarlang.progress": "翻訳中... %s / %s Mod",
+  "gui.alltranslator.modjarlang.cancel": "中断",
+  "gui.alltranslator.modjarlang.done": "完了: %s 件生成、%s 件スキップ",
+  "gui.alltranslator.modjarlang.reload": "適用(リソースを再読込)"
 }

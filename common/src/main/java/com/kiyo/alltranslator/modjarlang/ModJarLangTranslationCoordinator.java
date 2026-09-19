@@ -96,8 +96,17 @@ public final class ModJarLangTranslationCoordinator {
                     }));
         }
 
+        final Map<String, String> sourceSnapshot = sourceEntries;
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                 .thenApply(v -> {
+                    long changed = translated.entrySet().stream()
+                            .filter(e -> !e.getValue().equals(sourceSnapshot.get(e.getKey())))
+                            .count();
+                    if (changed == 0) {
+                        AllTranslator.LOGGER.warn("Mod jar lang: no key was actually translated for mod "
+                                + candidate.modId() + " (API unavailable?); not writing a pack so it can be retried");
+                        return false;
+                    }
                     try {
                         store.write(candidate.modId(), targetLangCode, translated, sourceHash);
                         AllTranslator.LOGGER.info("Mod jar lang: generated " + targetLangCode + ".json for mod "

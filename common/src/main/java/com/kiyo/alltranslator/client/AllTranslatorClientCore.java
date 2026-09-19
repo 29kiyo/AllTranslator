@@ -129,6 +129,9 @@ public final class AllTranslatorClientCore {
         ModJarLangTranslationCoordinator modJarLangCoordinator = new ModJarLangTranslationCoordinator(
                 AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.generatedLangPackStore());
         AllTranslatorCore.installModJarLangTranslationCoordinator(modJarLangCoordinator);
+        // Mod jar lang bulk translation: opt-in confirmation screen, once per session on the title screen.
+        dev.architectury.event.events.client.ClientTickEvent.CLIENT_POST.register(
+                client -> com.kiyo.alltranslator.client.ModJarLangPromptHook.onClientTick(client));
         // NOTE: registering GeneratedLangPackRepositorySource with
         // Minecraft#getResourcePackRepository()#addPackFinder is done from EACH
         // loader module (AllTranslatorFabricClient / AllTranslatorNeoForge), NOT
