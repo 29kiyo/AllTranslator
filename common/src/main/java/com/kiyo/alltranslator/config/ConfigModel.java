@@ -77,7 +77,7 @@ public final class ConfigModel {
 
     /**
      * Phase 14: per-category translation ON/OFF (PHASE_INSTRUCTIONS.md Phase 14 item 1).
-     * All default true (existing behavior unchanged for anyone who never opens the new
+     * All default false (opt-in, to avoid unintended API use; values already stored in config.json are kept, missing ones default to off; enable them on the new
      * screen). Checked at each hook site IN ADDITION TO (not instead of) the existing
      * global translationEnabled switch, which TranslatableTextInterceptor#intercept()
      * itself still enforces as the master switch. translateOtherModScreens above is the
@@ -85,10 +85,10 @@ public final class ConfigModel {
      * alongside these on TranslationCategoriesScreen instead of the main config screen,
      * but its field name/JSON key is unchanged for config.json backward compatibility.
      */
-    public boolean translateItemNames = true;
-    public boolean translateItemTooltips = true;
-    public boolean translateEntityNames = true;
-    public boolean translateChat = true;
+    public boolean translateItemNames = false;
+    public boolean translateItemTooltips = false;
+    public boolean translateEntityNames = false;
+    public boolean translateChat = false;
 
     /**
      * Phase 14 (item 7, tellraw translation, Option A - see
@@ -98,7 +98,7 @@ public final class ConfigModel {
      * feedback/broadcasts (deliberately NOT a general
      * ServerPlayer#sendSystemMessage hook - see that class's Javadoc for why).
      */
-    public boolean translateSystemMessages = true;
+    public boolean translateSystemMessages = false;
 
     /**
      * Real-world follow-up fix (Toast/Advancement translation task session, user
@@ -109,7 +109,7 @@ public final class ConfigModel {
      * existing translateSystemMessages toggle, kept separate/unrenamed for config.json
      * backward compatibility) and ordinary chat (translateChat). Default ON.
      */
-    public boolean translatePrivateMessagesAndTitles = true;
+    public boolean translatePrivateMessagesAndTitles = false;
 
     /**
      * Phase 14 (Toast/Advancement translation task): translates the title line of the
@@ -120,7 +120,7 @@ public final class ConfigModel {
      * other category toggles above (this is its own distinct, narrowly-scoped hook, not
      * part of translateEntityNames/translateChat/etc).
      */
-    public boolean translateAdvancementToasts = true;
+    public boolean translateAdvancementToasts = false;
 
     /**
      * Phase 14 (Toast/Advancement translation task, follow-up): the "New Recipes
@@ -131,7 +131,7 @@ public final class ConfigModel {
      * from translateAdvancementToasts since it is a structurally distinct Mixin/toast
      * class, even though both are "toast notifications" in spirit. Default ON.
      */
-    public boolean translateRecipeToasts = true;
+    public boolean translateRecipeToasts = false;
 
     /**
      * Phase 14 (Boss bar name translation, PHASE_INSTRUCTIONS.md Phase 14 item 6):
@@ -143,7 +143,7 @@ public final class ConfigModel {
      * RemoteServerCategoriesScreen (which only surfaces settings a server admin can
      * meaningfully control).
      */
-    public boolean translateBossBarNames = true;
+    public boolean translateBossBarNames = false;
     /** Mod jar lang bulk translation: auto-show the confirmation screen on the title screen. */
     public boolean modJarLangPromptEnabled = true;
     /** Mod IDs the user unchecked in the confirmation screen; excluded from the auto prompt. */
@@ -173,5 +173,5 @@ public final class ConfigModel {
      * see DEVELOPMENT_STATUS.md). No config-screen field yet - edit config.json
      * directly to change it, same as the per-API "timeoutSeconds" extraParam.
      */
-    public int serverProxyTimeoutSeconds = 60;
+    public int serverProxyTimeoutSeconds = 150;
 }
