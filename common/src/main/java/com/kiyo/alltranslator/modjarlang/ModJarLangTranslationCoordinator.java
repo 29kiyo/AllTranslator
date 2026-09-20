@@ -82,29 +82,41 @@ public final class ModJarLangTranslationCoordinator {
         }
 
         Map<String, String> translated = new ConcurrentHashMap<>();
-        List<CompletableFuture<Void>> futures = new ArrayList<>(sourceEntries.size());
-        for (var entry : sourceEntries.entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-            futures.add(localizedTextResolver.resolve(key, value)
-                    .thenAccept(result -> translated.put(key, result))
-                    .exceptionally(ex -> {
-                        AllTranslator.LOGGER.warn("Mod jar lang: translation failed for key " + key
-                                + " (mod " + candidate.modId() + "); keeping original text", ex);
-                        translated.put(key, value);
-                        return null;
-                    }));
-        }
-
         final Map<String, String> sourceSnapshot = sourceEntries;
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        if (sourceSnapshot.isEmpty()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        java.util.function.BiFunction<String, String, CompletableFuture<Void>> translateOne = (key, value) ->
+                localizedTextResolver.resolve(key, value)
+                        .thenAccept(result -> translated.put(key, result))
+                        .exceptionally(ex -> {
+                            AllTranslator.LOGGER.warn("Mod jar lang: translation failed for key " + key
+                                    + " (mod " + candidate.modId() + "); keeping original text", ex);
+                            translated.put(key, value);
+                            return null;
+                        });
+
+        // Warm-up: an API with no recorded success only accepts ONE in-flight request (ApiState
+        // probe reservation, ARCHITECTURE.md 23.1). Firing every key at once would let a single
+        // key through and send all the others straight to the original-text fallback, so the
+        // first key goes alone and the rest follow once it has finished.
+        List<Map.Entry<String, String>> items = new ArrayList<>(sourceSnapshot.entrySet());
+        Map.Entry<String, String> first = items.get(0);
+        return translateOne.apply(first.getKey(), first.getValue())
+                .thenCompose(w -> {
+                    List<CompletableFuture<Void>> futures = new ArrayList<>(items.size());
+                    for (int i = 1; i < items.size(); i++) {
+                        futures.add(translateOne.apply(items.get(i).getKey(), items.get(i).getValue()));
+                    }
+                    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+                })
                 .thenApply(v -> {
                     long changed = translated.entrySet().stream()
                             .filter(e -> !e.getValue().equals(sourceSnapshot.get(e.getKey())))
                             .count();
-                    if (changed == 0) {
-                        AllTranslator.LOGGER.warn("Mod jar lang: no key was actually translated for mod "
-                                + candidate.modId() + " (API unavailable?); not writing a pack so it can be retried");
+                    if (changed * 2 < translated.size()) {
+                        AllTranslator.LOGGER.warn("Mod jar lang: fewer than half of the keys were translated for mod "
+                                + candidate.modId() + " (API failures?); not writing a pack so it can be retried");
                         return false;
                     }
                     try {

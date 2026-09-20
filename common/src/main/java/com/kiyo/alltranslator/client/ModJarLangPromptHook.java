@@ -47,4 +47,20 @@ public final class ModJarLangPromptHook {
         }
         client.gui.setScreen(new ModJarLangConfirmScreen(current, lang, pending));
     }
+
+    /**
+     * Manual entry point (config screen button): same screen, but the ignore list is not
+     * applied, so mods unchecked earlier can be picked again. No pending mods is shown as
+     * an empty state by the screen itself.
+     */
+    public static void openManually(Minecraft client, Screen parent) {
+        if (AllTranslatorCore.modJarLangTranslationCoordinator() == null
+                || AllTranslatorCore.generatedLangPackStore() == null) {
+            return;
+        }
+        String lang = AllTranslatorCore.languageResolver().resolveTargetLanguage();
+        List<ModJarLangPending> pending = ModJarLangPending.collect(
+                lang, AllTranslatorCore.generatedLangPackStore(), java.util.List.of());
+        client.gui.setScreen(new ModJarLangConfirmScreen(parent, lang, pending));
+    }
 }

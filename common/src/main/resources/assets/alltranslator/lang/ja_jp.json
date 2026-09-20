@@ -78,5 +78,7 @@
   "gui.alltranslator.modjarlang.progress": "翻訳中... %s / %s Mod",
   "gui.alltranslator.modjarlang.cancel": "中断",
   "gui.alltranslator.modjarlang.done": "完了: %s 件生成、%s 件スキップ",
-  "gui.alltranslator.modjarlang.reload": "適用(リソースを再読込)"
+  "gui.alltranslator.modjarlang.reload": "適用(リソースを再読込)",
+  "gui.alltranslator.modjarlang.none_found": "翻訳が必要なModは見つかりませんでした。",
+  "gui.alltranslator.config.mod_jar_lang": "Modの言語ファイルを翻訳..."
 }

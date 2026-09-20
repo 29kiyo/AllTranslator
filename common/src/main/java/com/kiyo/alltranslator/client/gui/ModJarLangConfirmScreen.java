@@ -179,9 +179,10 @@ public final class ModJarLangConfirmScreen extends Screen {
         for (ModJarLangPending p : pending) {
             if (selected.contains(p.modId())) {
                 todo.add(p);
-            } else if (!model.modJarLangIgnoredMods.contains(p.modId())) {
-                model.modJarLangIgnoredMods.add(p.modId()); // unchecked = do not offer again automatically
+                model.modJarLangIgnoredMods.remove(p.modId());
             }
+            // Unchecked mods are simply offered again next time; only the explicit
+            // "don't ask again" button (or hand-editing the ignore list) suppresses them.
         }
         AllTranslatorCore.configManager().save();
         if (todo.isEmpty()) {
@@ -237,6 +238,10 @@ public final class ModJarLangConfirmScreen extends Screen {
         g.centeredText(this.font, this.title, cx, 8, LABEL_COLOR);
         switch (phase) {
             case CONFIRM -> {
+                if (pending.isEmpty()) {
+                    g.centeredText(this.font, Component.translatable("gui.alltranslator.modjarlang.none_found"),
+                            cx, this.height / 2 - 10, SUBTLE_COLOR);
+                }
                 int y = 22;
                 for (FormattedCharSequence line : this.font.split(
                         Component.translatable("gui.alltranslator.modjarlang.description"), this.width - 40)) {

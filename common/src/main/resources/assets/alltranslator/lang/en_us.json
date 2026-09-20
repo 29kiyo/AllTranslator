@@ -78,5 +78,7 @@
   "gui.alltranslator.modjarlang.progress": "Translating... %s / %s mods",
   "gui.alltranslator.modjarlang.cancel": "Cancel",
   "gui.alltranslator.modjarlang.done": "Done: %s generated, %s skipped",
-  "gui.alltranslator.modjarlang.reload": "Apply (Reload Resources)"
+  "gui.alltranslator.modjarlang.reload": "Apply (Reload Resources)",
+  "gui.alltranslator.modjarlang.none_found": "No mods with missing translations were found.",
+  "gui.alltranslator.config.mod_jar_lang": "Translate Mod Language Files..."
 }

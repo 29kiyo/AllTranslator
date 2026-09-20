@@ -208,6 +208,13 @@ public final class AllTranslatorConfigScreen extends Screen {
                         .build());
 
         this.addRenderableWidget(
+                Button.builder(Component.translatable("gui.alltranslator.config.mod_jar_lang"), button ->
+                                com.kiyo.alltranslator.client.ModJarLangPromptHook.openManually(this.minecraft, this))
+                        .pos(this.width / 2 - 100, apiButtonY + 48)
+                        .size(200, 20)
+                        .build());
+
+        this.addRenderableWidget(
                 Button.builder(CommonComponents.GUI_DONE, button -> onDone())
                         .pos(this.width / 2 - 75, this.height - 24)
                         .size(150, 20)
