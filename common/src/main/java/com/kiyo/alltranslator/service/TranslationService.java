@@ -68,6 +68,20 @@ public final class TranslationService {
     private final InFlightCallRegistry inFlightCallRegistry = new InFlightCallRegistry();
 
     /**
+     * Phase 14 (ARCHITECTURE.md §26.4): how candidates are ordered. Read on every
+     * translate() call, so a remote config save by an admin takes effect immediately.
+     */
+    private volatile java.util.function.Supplier<com.kiyo.alltranslator.api.ApiSelectionMode> selectionModeSupplier =
+            () -> com.kiyo.alltranslator.api.ApiSelectionMode.PRIORITY_FAILOVER;
+    private final AtomicInteger distributeRotation = new AtomicInteger();
+
+    public void setSelectionModeSupplier(java.util.function.Supplier<com.kiyo.alltranslator.api.ApiSelectionMode> supplier) {
+        this.selectionModeSupplier = supplier != null
+                ? supplier
+                : () -> com.kiyo.alltranslator.api.ApiSelectionMode.PRIORITY_FAILOVER;
+    }
+
+    /**
      * Phase 14 (scoreboard): tracks how many attempts are CURRENTLY assigned to
      * each API config (from just before an attempt starts through its
      * whenComplete, regardless of success/failure) - purely observational,
@@ -179,8 +193,64 @@ public CompletableFuture<TranslationResult> translate(TranslationRequest request
                     .filter(c -> c.provider() != excludeProvider)
                     .collect(java.util.stream.Collectors.toList());
         }
+        candidates = orderForMode(candidates);
         attemptNext(request, candidates.iterator(), cacheKey, persistable, newFuture);
         return newFuture;
+    }
+
+    /**
+     * Phase 14 (ARCHITECTURE.md §26.4). PRIORITY_FAILOVER (default) keeps ApiManager's
+     * priority order untouched. DISTRIBUTE puts the API with the fewest in-flight requests
+     * first; ties are broken by rotating the starting position per request, so idle APIs
+     * are used in turn. Each API is still tried at most once per request (attemptNext).
+     */
+    private List<TranslationApiConfig> orderForMode(List<TranslationApiConfig> candidates) {
+        if (candidates.size() < 2) {
+            return candidates;
+        }
+        com.kiyo.alltranslator.api.ApiSelectionMode mode = null;
+        try {
+            mode = selectionModeSupplier.get();
+        } catch (RuntimeException e) {
+            // A broken supplier must never break translation: fall back to priority order.
+        }
+        if (mode != com.kiyo.alltranslator.api.ApiSelectionMode.DISTRIBUTE) {
+            return candidates;
+        }
+        int n = candidates.size();
+        int start = Math.floorMod(distributeRotation.getAndIncrement(), n);
+        java.util.Map<UUID, Integer> load = new java.util.HashMap<>();
+        java.util.List<TranslationApiConfig> ordered = new java.util.ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            TranslationApiConfig c = candidates.get((start + i) % n);
+            ordered.add(c);
+            load.put(c.id(), inFlightCountFor(c.id()));
+        }
+        // List.sort is stable, so equal loads keep the rotated order.
+        ordered.sort(java.util.Comparator.comparingInt((TranslationApiConfig c) -> load.get(c.id())));
+        return ordered;
+    }
+
+    /**
+     * Phase 14 (ARCHITECTURE.md §26.4): a call that succeeded at the HTTP level but returned
+     * nothing usable counts as a failure of that API for this request, so the request moves
+     * on to the next candidate and nothing bad is cached. Deliberately conservative: a result
+     * identical to the source is NOT invalid (proper nouns and short strings legitimately
+     * stay the same).
+     */
+    private static TranslationResult requireValidResult(TranslationRequest request,
+                                                         TranslationApiConfig candidate,
+                                                         TranslationResult result) {
+        String translated = result == null ? null : result.translatedText();
+        if (translated == null || translated.isBlank()) {
+            throw new TranslationException(ApiFailureType.INVALID_RESPONSE, -1,
+                    "empty translation from " + candidate.displayName());
+        }
+        if (!com.kiyo.alltranslator.text.PlaceholderProtector.allTokensPresent(request.sourceText(), translated)) {
+            throw new TranslationException(ApiFailureType.INVALID_RESPONSE, -1,
+                    "placeholder token dropped by " + candidate.displayName());
+        }
+        return result;
     }
 
     private void attemptNext(TranslationRequest request,
@@ -236,6 +306,7 @@ public CompletableFuture<TranslationResult> translate(TranslationRequest request
             }
         }, asyncExecutor)
                 .thenCompose(v -> provider.translate(request, candidate, rawKey, inFlightCallRegistry))
+                .thenApply(r -> requireValidResult(request, candidate, r))
                 .whenComplete((result, error) -> {
                     inFlightHttpRequests.release();
                     int afterDecrement = inFlightCounter.decrementAndGet();
@@ -275,10 +346,14 @@ public CompletableFuture<TranslationResult> translate(TranslationRequest request
                                 : provider.classifyError(cause, -1);
 
                         AllTranslator.LOGGER.warn("Translation via " + candidate.displayName()
-                                + " failed (" + failureType + ")", cause);
+                                + " failed (" + failureType + ")"
+                                + (failureType == ApiFailureType.INVALID_RESPONSE && cause != null ? ": " + cause.getMessage() : ""),
+                                failureType == ApiFailureType.INVALID_RESPONSE ? null : cause);
                         apiManager.recordFailure(candidate.id(), failureType);
 
-                        BiConsumer<String, String> listener = failureListener;
+                        // Invalid responses are per-request and can be frequent: log them, but no error toast.
+                        BiConsumer<String, String> listener =
+                                failureType == ApiFailureType.INVALID_RESPONSE ? null : failureListener;
                         if (listener != null) {
                             try {
                                 listener.accept(candidate.displayName(), failureType.toString());

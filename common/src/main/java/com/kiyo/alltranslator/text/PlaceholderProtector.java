@@ -38,6 +38,8 @@ public final class PlaceholderProtector {
             "%\\d+\\$s|%[a-zA-Z_]+%|\\{[a-zA-Z0-9_]+}|%[sd]|\u00A7[0-9a-fk-orA-FK-OR]"
     );
 
+    private static final Pattern TOKEN_PATTERN = Pattern.compile("\uE000\\d+\uE001");
+
     private PlaceholderProtector() {}
 
     public record Protected(String text, List<String> tokens) {}
@@ -58,6 +60,24 @@ public final class PlaceholderProtector {
         }
         m.appendTail(out);
         return new Protected(out.toString(), tokens);
+    }
+
+    /**
+     * True if every token that {@link #protect(String)} put into {@code source} is still
+     * present, unchanged, in {@code translated}. Used to reject an API result that dropped
+     * a placeholder (a translation that lost "%player%" is not safe to show).
+     */
+    public static boolean allTokensPresent(String source, String translated) {
+        if (source == null || translated == null) {
+            return true;
+        }
+        Matcher m = TOKEN_PATTERN.matcher(source);
+        while (m.find()) {
+            if (!translated.contains(m.group())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Restores tokens produced by {@link #protect(String)} after translation. */

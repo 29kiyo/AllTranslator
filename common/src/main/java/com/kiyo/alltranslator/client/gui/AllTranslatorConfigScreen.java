@@ -71,6 +71,7 @@ public final class AllTranslatorConfigScreen extends Screen {
     private EditBox scoreboardIntervalBox;
 
     private CycleButton<Boolean> googleFreeButton;
+    private CycleButton<com.kiyo.alltranslator.api.ApiSelectionMode> selectionModeButton;
     private CycleButton<Boolean> showOriginalTextButton;
     private CycleButton<Boolean> toastEnabledButton;
     private CycleButton<Boolean> toastSoundButton;
@@ -136,6 +137,17 @@ public final class AllTranslatorConfigScreen extends Screen {
         maxConcurrentBox.setMaxLength(3);
         maxConcurrentBox.setValue(String.valueOf(model.maxConcurrentHttpRequests));
         this.addRenderableWidget(maxConcurrentBox);
+        y += ROW_HEIGHT;
+
+        selectionModeButton = CycleButton.<com.kiyo.alltranslator.api.ApiSelectionMode>builder(
+                        selectionMode -> Component.translatable("gui.alltranslator.config.api_selection_mode."
+                                + selectionMode.name().toLowerCase(java.util.Locale.ROOT)),
+                        model.apiSelectionMode == null
+                                ? com.kiyo.alltranslator.api.ApiSelectionMode.PRIORITY_FAILOVER
+                                : model.apiSelectionMode)
+                .withValues(com.kiyo.alltranslator.api.ApiSelectionMode.values())
+                .create(leftX, y + 12, COLUMN_WIDTH, 20, Component.translatable("gui.alltranslator.config.api_selection_mode"));
+        this.addRenderableWidget(selectionModeButton);
         y += ROW_HEIGHT;
 
         int leftColumnBottom = y;
@@ -229,6 +241,7 @@ public final class AllTranslatorConfigScreen extends Screen {
     private void applyToModel() {
         model.translationEnabled = translationEnabledButton.getValue();
         model.serverSideChatTranslationEnabled = serverChatButton.getValue();
+        model.apiSelectionMode = selectionModeButton.getValue();
         model.showOriginalTextInChat = showOriginalTextButton.getValue();
         model.apiErrorToastEnabled = toastEnabledButton.getValue();
         model.apiErrorToastSoundEnabled = toastSoundButton.getValue();

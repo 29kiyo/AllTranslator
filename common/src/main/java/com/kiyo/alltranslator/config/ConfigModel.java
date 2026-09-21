@@ -23,6 +23,13 @@ public final class ConfigModel {
      */
     public int maxConcurrentHttpRequests = 3;
     /**
+     * Phase 14 (ARCHITECTURE.md §26.4): how candidate APIs are ordered for each request.
+     * Stored by constant name - do not rename. A missing or unknown value (Gson gives
+     * null) is treated as PRIORITY_FAILOVER by TranslationService.
+     */
+    public com.kiyo.alltranslator.api.ApiSelectionMode apiSelectionMode =
+            com.kiyo.alltranslator.api.ApiSelectionMode.PRIORITY_FAILOVER;
+    /**
      * Phase 14: shows a live sidebar scoreboard (in-flight request count, status,
      * queue depth per enabled API) - server-wide, not per-player (a Minecraft
      * sidebar objective is a single shared Scoreboard, not per-player state).

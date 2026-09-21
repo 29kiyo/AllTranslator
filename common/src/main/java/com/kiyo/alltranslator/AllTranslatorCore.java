@@ -160,6 +160,9 @@ public final class AllTranslatorCore {
                 executor,
                 config.maxConcurrentHttpRequests
         );
+        // Phase 14 (ARCHITECTURE.md §26.4): read the mode on every request, so a config
+        // change (local screen or remote save) takes effect without a restart.
+        translationService.setSelectionModeSupplier(() -> configManager.model().apiSelectionMode);
 
         // Language resolution: forced config override -> client's own MC language -> en_us.
         languageResolver = new LanguageResolver(configManager);

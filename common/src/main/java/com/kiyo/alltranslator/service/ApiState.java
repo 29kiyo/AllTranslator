@@ -23,6 +23,13 @@ public final class ApiState {
      * invalid/rejected API key is unambiguous.
      */
     private static final int CONFIG_ERROR_DISABLE_THRESHOLD = 3;
+    /**
+     * Phase 14 (ARCHITECTURE.md §26.4): an "invalid response" (empty result, dropped
+     * placeholder token) is a per-request problem, not proof the API is down, so it does
+     * not touch consecutiveFailures. Only this many in a row (a success resets the count)
+     * put the API on a short cooldown. The value 5 is provisional, not derived from data.
+     */
+    private static final int INVALID_RESPONSE_COOLDOWN_THRESHOLD = 5;
 
     private final UUID configId;
     private ApiStatus status = ApiStatus.AVAILABLE;
@@ -30,6 +37,7 @@ public final class ApiState {
     private Instant lastSuccess;
     private Instant lastFailure;
     private int consecutiveFailures;
+    private int consecutiveInvalid;
 
     /**
      * Phase 11 fix (real-world bug: a burst of ~8 concurrent item-name translation
@@ -94,6 +102,7 @@ public final class ApiState {
         cooldownUntil = null;
         consecutiveFailures = 0;
         lastSuccess = Instant.now();
+        consecutiveInvalid = 0;
     }
 
     /**
@@ -108,12 +117,17 @@ public final class ApiState {
      * not fake confidence the API hasn't actually earned yet.
      */
     public synchronized void forceAvailable() {
+        consecutiveInvalid = 0;
         status = ApiStatus.AVAILABLE;
         cooldownUntil = null;
         consecutiveFailures = 0;
     }
 
     public synchronized void recordFailure(ApiFailureType failureType) {
+        if (failureType == ApiFailureType.INVALID_RESPONSE) {
+            recordInvalidResponse();
+            return;
+        }
         lastFailure = Instant.now();
         consecutiveFailures++;
 
@@ -145,6 +159,21 @@ public final class ApiState {
             default:
                 status = ApiStatus.TEMP_UNAVAILABLE;
                 cooldownUntil = Instant.now().plusSeconds(backoffSeconds());
+        }
+    }
+
+    /**
+     * Phase 14 (ARCHITECTURE.md §26.4): see INVALID_RESPONSE_COOLDOWN_THRESHOLD. Does not
+     * change the status until the threshold is reached, and does not count toward
+     * consecutiveFailures or lastSuccess.
+     */
+    private void recordInvalidResponse() {
+        lastFailure = Instant.now();
+        consecutiveInvalid++;
+        if (consecutiveInvalid >= INVALID_RESPONSE_COOLDOWN_THRESHOLD) {
+            consecutiveInvalid = 0;
+            status = ApiStatus.TEMP_UNAVAILABLE;
+            cooldownUntil = Instant.now().plusSeconds(BASE_COOLDOWN_SECONDS);
         }
     }
 
