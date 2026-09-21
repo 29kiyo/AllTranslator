@@ -1,12 +1,12 @@
 package com.kiyo.alltranslator.neoforge;
 
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModLoadingContext;
+import dev.architectury.platform.Platform;
+import dev.architectury.utils.Env;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.client.event.ClientChatReceivedEvent;
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
 import net.minecraft.server.packs.PackType;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
@@ -14,8 +14,6 @@ import com.kiyo.alltranslator.modjarlang.GeneratedLangPackRepositorySource;
 import com.kiyo.alltranslator.AllTranslator;
 import com.kiyo.alltranslator.AllTranslatorCore;
 import com.kiyo.alltranslator.client.AllTranslatorClientCore;
-import com.kiyo.alltranslator.client.AllTranslatorKeyBindings;
-import com.kiyo.alltranslator.client.gui.AllTranslatorConfigScreen;
 import com.kiyo.alltranslator.text.ChatTranslationCoordinator;
 
 @Mod(AllTranslator.MOD_ID)
@@ -26,33 +24,12 @@ public final class AllTranslatorNeoForge {
         // Run our common setup.
         AllTranslator.init(FMLPaths.CONFIGDIR.get().resolve(AllTranslator.MOD_ID));
 
-        // Phase 8: NeoForge's "Mods" screen -> Config button, ARCHITECTURE.md §15.1.
-        // Registered here (constructor), NOT inside onClientSetup below, because
-        // ModLoadingContext's active-container ThreadLocal (verified via javap:
-        // ModLoadingContext.get()/registerExtensionPoint(Class, Supplier)) is only
-        // populated while this mod's constructor is running - by the time
-        // FMLClientSetupEvent fires it is no longer valid. This is a genuine exception
-        // to this project's "client-only code only inside FMLClientSetupEvent" rule
-        // (AllTranslatorClientCore's own Javadoc), forced by the extension-point API's
-        // own contract rather than a relaxation of that rule: only a Supplier<Screen>
-        // reference is created here, and per normal JVM lambda semantics that lambda's
-        // body (which touches client-only Screen classes) is never invoked unless/until
-        // a client actually opens the Mods/Config screen, so this stays safe on a
-        // dedicated server exactly like the existing FtbQuestsCompat/language-supplier
-        // guards elsewhere in the project.
-        ModLoadingContext.get().registerExtensionPoint(
-                IConfigScreenFactory.class,
-                () -> (container, parentScreen) -> new AllTranslatorConfigScreen(parentScreen));
-
-        // Phase 8 fix (see AllTranslatorKeyBindings' Javadoc for the full javap-verified
-        // explanation): Architectury's NeoForge KeyMappingRegistryImpl only installs its
-        // own RegisterKeyMappingsEvent listener the first time this class is touched, and
-        // that event fires before FMLClientSetupEvent. Creating the KeyMapping here in the
-        // constructor - not in onClientSetup below - guarantees Architectury's listener is
-        // installed in time. KeyMapping itself never touches GLFW/the window (verified via
-        // javap: it is a plain data holder), so constructing it here is safe even though
-        // this constructor also runs on a dedicated server.
-        AllTranslatorKeyBindings.createKeyMapping();
+        // Client-only constructor-time hooks (Mods-screen config factory, KeyMapping)
+        // live in a separate class so a dedicated server never loads or verifies it.
+        // Doing this inline made the verifier load Screen -> NoClassDefFoundError.
+        if (Platform.getEnvironment() == Env.CLIENT) {
+            AllTranslatorNeoForgeClient.registerConstructorTimeHooks();
+        }
 
         // Client-only Phase 4 hooks: FMLClientSetupEvent only ever fires on the
         // physical client, so this is a safe place to call AllTranslatorClientCore.

@@ -11,25 +11,18 @@ import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.repository.RepositorySource;
 
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * Exposes every per-mod directory under config/alltranslator/generated_lang_packs/
- * (GeneratedLangPackStore) to Minecraft as an always-on (required=true, per
- * PackSelectionConfig - no user toggle needed/possible in the resource pack
- * screen) client resource pack, so mod-jar-lang bulk-translation output is picked
- * up by vanilla's own translation resolution with zero per-mod Mixin/hook work.
+ * Exposes the single combined pack under config/alltranslator/generated_lang_packs/
+ * (GeneratedLangPackStore#combinedPackRoot) to Minecraft as an always-on (required=true,
+ * no user toggle) client resource pack, so mod-jar-lang bulk-translation output is picked up
+ * by vanilla's own translation resolution. Exposes nothing until something was generated.
  *
- * Registered identically on both loaders via this single common RepositorySource
- * interface (confirmed via javap: PackRepository#addPackFinder(RepositorySource)
- * on Fabric, AddPackFindersEvent#addRepositorySource(RepositorySource) on
- * NeoForge) - only the REGISTRATION call site differs per loader, not this class.
- *
- * Client-only: PackType.CLIENT_RESOURCES only, and this must only ever be
- * constructed/registered from a confirmed physical-client entrypoint (same rule
- * as AllTranslatorClientCore).
+ * Registered identically on both loaders via this common RepositorySource (Fabric:
+ * FabricPackRepositorySourceInjector, NeoForge: AddPackFindersEvent) - only the REGISTRATION
+ * call site differs per loader, not this class. Client-only.
  */
 public final class GeneratedLangPackRepositorySource implements RepositorySource {
 
@@ -41,28 +34,27 @@ public final class GeneratedLangPackRepositorySource implements RepositorySource
 
     @Override
     public void loadPacks(Consumer<Pack> consumer) {
-        List<Path> packDirs = store.listGeneratedPackDirs();
-        for (Path dir : packDirs) {
-            String modId = dir.getFileName().toString();
-            String packId = "alltranslator_generated_" + modId;
-            try {
-                PackLocationInfo locationInfo = new PackLocationInfo(
-                        packId,
-                        Component.literal("All Translator: " + modId),
-                        PackSource.BUILT_IN,
-                        Optional.empty());
-                PackSelectionConfig selectionConfig = new PackSelectionConfig(
-                        true, Pack.Position.TOP, true); // required, always top, fixed - see class Javadoc
-                Pack pack = Pack.readMetaAndCreate(
-                        locationInfo,
-                        new PathPackResources.PathResourcesSupplier(dir),
-                        PackType.CLIENT_RESOURCES,
-                        selectionConfig);
-                consumer.accept(pack);
-            } catch (RuntimeException e) {
-                AllTranslator.LOGGER.warn("Mod jar lang: failed to load generated pack for " + modId
-                        + "; skipping this mod's generated translations for this session", e);
-            }
+        Path root = store.combinedPackRoot();
+        if (root == null) {
+            return;
+        }
+        try {
+            PackLocationInfo locationInfo = new PackLocationInfo(
+                    "alltranslator_generated",
+                    Component.literal("All Translator: generated translations"),
+                    PackSource.BUILT_IN,
+                    Optional.empty());
+            PackSelectionConfig selectionConfig = new PackSelectionConfig(
+                    true, Pack.Position.TOP, true); // required, always top, fixed
+            Pack pack = Pack.readMetaAndCreate(
+                    locationInfo,
+                    new PathPackResources.PathResourcesSupplier(root),
+                    PackType.CLIENT_RESOURCES,
+                    selectionConfig);
+            consumer.accept(pack);
+        } catch (RuntimeException e) {
+            AllTranslator.LOGGER.warn("Mod jar lang: failed to load the generated pack; "
+                    + "generated translations are unavailable for this session", e);
         }
     }
 }

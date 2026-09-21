@@ -225,15 +225,25 @@ public final class TranslatableTextInterceptor {
 
     /**
      * Resolves a single TranslatableContents arg to TARGET-language plain text - see
-     * reapplyArgsIfNeeded's Javadoc for the real-world bug this fixes. Recurses one
-     * level to handle a nested arg that itself has its own args (e.g. a nested
+     * reapplyArgsIfNeeded's Javadoc for the real-world bug this fixes. Recurses (bounded
+     * by MAX_ARG_DEPTH) to handle a nested arg that itself has its own args (e.g. a nested
      * template), falling back to plain getString() (client's live language) wherever
      * no existing translation is found for a given key - never throws, matching this
      * class's overall defensive style.
      */
     private static Object resolveArgPlainText(Object arg, String targetLang) {
+        return resolveArgPlainText(arg, targetLang, 0);
+    }
+
+    /** Nesting limit, e.g. potion.withDuration > potion.withAmplifier > effect name. */
+    private static final int MAX_ARG_DEPTH = 8;
+
+    private static Object resolveArgPlainText(Object arg, String targetLang, int depth) {
         if (!(arg instanceof Component c)) {
             return arg;
+        }
+        if (depth > MAX_ARG_DEPTH) {
+            return c.getString();
         }
         if (!(c.getContents() instanceof TranslatableContents nestedTc)) {
             return c.getString();
@@ -248,9 +258,9 @@ public final class TranslatableTextInterceptor {
         }
         Object[] nestedPlainArgs = new Object[nestedArgs.length];
         for (int i = 0; i < nestedArgs.length; i++) {
-            // One level of recursion only - deeper nesting falls back to plain
-            // getString() rather than recursing indefinitely.
-            nestedPlainArgs[i] = (nestedArgs[i] instanceof Component nc) ? nc.getString() : nestedArgs[i];
+            // Recurse (bounded by MAX_ARG_DEPTH): a potion effect line nests the
+            // effect name two levels deep (withDuration > withAmplifier > name).
+            nestedPlainArgs[i] = resolveArgPlainText(nestedArgs[i], targetLang, depth + 1);
         }
         try {
             return String.format(Locale.ROOT, existing, nestedPlainArgs);

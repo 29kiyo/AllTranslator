@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Checkbox;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
@@ -40,11 +41,11 @@ public final class ModJarLangConfirmScreen extends Screen {
     private static final int SUBTLE_COLOR = 0xFFAAAAAA;
     private static final int ROW_HEIGHT = 24;
     private static final int LIST_TOP = 56;
-    private static final int FOOTER_HEIGHT = 56;
+    private static final int FOOTER_HEIGHT = 92;
 
     private final Screen parent;
-    private final String targetLang;
-    private final List<ModJarLangPending> pending;
+    private String targetLang;
+    private List<ModJarLangPending> pending;
     private final Set<String> selected = new LinkedHashSet<>();
 
     private volatile Phase phase = Phase.CONFIRM;
@@ -62,6 +63,9 @@ public final class ModJarLangConfirmScreen extends Screen {
     private Button cancelButton;
     private Button reloadButton;
     private Button closeButton;
+    private Button applyNowButton;
+    private EditBox langBox;
+    private Button langSetButton;
 
     public ModJarLangConfirmScreen(Screen parent, String targetLang, List<ModJarLangPending> pending) {
         super(Component.translatable("gui.alltranslator.modjarlang.title"));
@@ -86,12 +90,29 @@ public final class ModJarLangConfirmScreen extends Screen {
         this.addRenderableWidget(list);
 
         selectAllButton = Button.builder(Component.translatable("gui.alltranslator.modjarlang.select_all"),
-                b -> setAllSelected(true)).pos(cx - 104, row1).size(100, 20).build();
+                b -> setAllSelected(true)).pos(cx - 154, row1).size(100, 20).build();
         this.addRenderableWidget(selectAllButton);
 
         selectNoneButton = Button.builder(Component.translatable("gui.alltranslator.modjarlang.select_none"),
-                b -> setAllSelected(false)).pos(cx + 4, row1).size(100, 20).build();
+                b -> setAllSelected(false)).pos(cx - 50, row1).size(100, 20).build();
         this.addRenderableWidget(selectNoneButton);
+
+        // Always available: apply (reload resource packs) an already generated pack later.
+        applyNowButton = Button.builder(Component.translatable("gui.alltranslator.modjarlang.reload"),
+                b -> applyAndReload()).pos(cx + 54, row1).size(100, 20).build();
+        this.addRenderableWidget(applyNowButton);
+
+        // Target language field: same setting as the M-key screen (forcedTargetLanguage).
+        langBox = new EditBox(this.font, cx - 154, this.height - 78, 214, 20,
+                Component.translatable("gui.alltranslator.modjarlang.target_language"));
+        langBox.setMaxLength(16);
+        langBox.setHint(Component.literal("auto"));
+        String forcedLang = AllTranslatorCore.configManager().model().forcedTargetLanguage;
+        langBox.setValue(forcedLang == null ? "" : forcedLang);
+        this.addRenderableWidget(langBox);
+        langSetButton = Button.builder(Component.translatable("gui.alltranslator.modjarlang.set_language"),
+                b -> applyLanguage()).pos(cx + 64, this.height - 78).size(90, 20).build();
+        this.addRenderableWidget(langSetButton);
 
         translateButton = Button.builder(Component.empty(), b -> startTranslation())
                 .pos(cx - 179, row2).size(150, 20).build();
@@ -159,6 +180,9 @@ public final class ModJarLangConfirmScreen extends Screen {
         list.active = confirm;
         selectAllButton.visible = confirm;
         selectNoneButton.visible = confirm;
+        applyNowButton.visible = confirm;
+        langBox.visible = confirm;
+        langSetButton.visible = confirm;
         translateButton.visible = confirm;
         laterButton.visible = confirm;
         neverButton.visible = confirm;
@@ -215,6 +239,23 @@ public final class ModJarLangConfirmScreen extends Screen {
         chain.whenComplete((v, ex) -> phase = Phase.DONE);
     }
 
+    private void applyLanguage() {
+        ConfigModel model = AllTranslatorCore.configManager().model();
+        String raw = langBox.getValue().trim();
+        model.forcedTargetLanguage = raw.isEmpty() ? null : com.kiyo.alltranslator.lang.LanguageResolver.normalize(raw);
+        AllTranslatorCore.configManager().save();
+        com.kiyo.alltranslator.client.PlayerLanguageSyncClient.sendCurrentLanguage(); // no-op when not connected
+        langBox.setValue(model.forcedTargetLanguage == null ? "" : model.forcedTargetLanguage);
+        targetLang = AllTranslatorCore.languageResolver().resolveTargetLanguage();
+        pending = ModJarLangPending.collect(targetLang, AllTranslatorCore.generatedLangPackStore(), java.util.List.of());
+        selected.clear();
+        for (ModJarLangPending p : pending) {
+            selected.add(p.modId());
+        }
+        list.replaceEntries(buildEntries());
+        refreshTranslateButton();
+    }
+
     private void applyAndReload() {
         Minecraft mc = this.minecraft;
         closeScreen();
@@ -242,6 +283,8 @@ public final class ModJarLangConfirmScreen extends Screen {
                     g.centeredText(this.font, Component.translatable("gui.alltranslator.modjarlang.none_found"),
                             cx, this.height / 2 - 10, SUBTLE_COLOR);
                 }
+                g.centeredText(this.font, Component.translatable("gui.alltranslator.modjarlang.target_language"),
+                        cx, this.height - 90, SUBTLE_COLOR);
                 int y = 22;
                 for (FormattedCharSequence line : this.font.split(
                         Component.translatable("gui.alltranslator.modjarlang.description"), this.width - 40)) {

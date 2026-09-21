@@ -44,7 +44,7 @@ public record ModJarLangPending(ModJarLangCandidate candidate, int keyCount) {
                 continue;
             }
             try {
-                String raw = Files.readString(c.sourceLangFile(), StandardCharsets.UTF_8);
+                String raw = c.readSource();
                 if (store.isUpToDate(modId, targetLang, GeneratedLangPackStore.sha256(raw))) {
                     continue;
                 }

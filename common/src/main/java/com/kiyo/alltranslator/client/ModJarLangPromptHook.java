@@ -8,29 +8,27 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Opens ModJarLangConfirmScreen once per game session, the first time the title screen is
- * showing. Driven by Architectury ClientTickEvent.CLIENT_POST (same pattern as
- * RemoteConfigClientReceiver). Fully client-local: no server involvement.
+ * Opens ModJarLangConfirmScreen the first time the title screen is showing for each target
+ * language in a game session (so changing the target language and coming back to the title
+ * screen offers the mods again). Driven by Architectury ClientTickEvent.CLIENT_POST (same
+ * pattern as RemoteConfigClientReceiver). Fully client-local: no server involvement.
  */
 public final class ModJarLangPromptHook {
 
-    private static boolean attempted = false;
+    private static final Set<String> promptedLanguages = new HashSet<>();
 
     private ModJarLangPromptHook() {}
 
     public static void onClientTick(Minecraft client) {
-        if (attempted) {
-            return;
-        }
         Screen current = client.gui.screen();
         if (!(current instanceof TitleScreen)) {
             return;
         }
-        attempted = true; // one attempt per session, whatever the outcome
-
         ConfigModel model = AllTranslatorCore.configManager().model();
         if (!model.translationEnabled || !model.modJarLangPromptEnabled) {
             return;
@@ -40,6 +38,9 @@ public final class ModJarLangPromptHook {
             return;
         }
         String lang = AllTranslatorCore.languageResolver().resolveTargetLanguage();
+        if (!promptedLanguages.add(lang)) {
+            return; // one attempt per target language per session, whatever the outcome
+        }
         List<ModJarLangPending> pending = ModJarLangPending.collect(
                 lang, AllTranslatorCore.generatedLangPackStore(), model.modJarLangIgnoredMods);
         if (pending.isEmpty()) {

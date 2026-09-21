@@ -80,5 +80,7 @@
   "gui.alltranslator.modjarlang.done": "完了: %s 件生成、%s 件スキップ",
   "gui.alltranslator.modjarlang.reload": "適用(リソースを再読込)",
   "gui.alltranslator.modjarlang.none_found": "翻訳が必要なModは見つかりませんでした。",
+  "gui.alltranslator.modjarlang.target_language": "\u5bfe\u8c61\u8a00\u8a9e(\u4f8b: ja_jp, en_us) \u7a7a\u6b04=\u81ea\u52d5",
+  "gui.alltranslator.modjarlang.set_language": "\u8a2d\u5b9a",
   "gui.alltranslator.config.mod_jar_lang": "Modの言語ファイルを翻訳..."
 }

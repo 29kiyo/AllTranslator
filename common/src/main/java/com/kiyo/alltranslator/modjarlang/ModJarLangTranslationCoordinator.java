@@ -54,7 +54,7 @@ public final class ModJarLangTranslationCoordinator {
     public CompletableFuture<Boolean> translateIfNeeded(ModJarLangCandidate candidate, String targetLangCode) {
         String rawSourceJson;
         try {
-            rawSourceJson = Files.readString(candidate.sourceLangFile(), StandardCharsets.UTF_8);
+            rawSourceJson = candidate.readSource();
         } catch (IOException e) {
             AllTranslator.LOGGER.warn("Mod jar lang: failed to read " + candidate.sourceLangFile()
                     + " for mod " + candidate.modId(), e);

@@ -72,3 +72,12 @@ configurations {
         outgoing.artifact(shadowJar)
     }
 }
+
+// Dedicated server uses its own run dir (do not share config.json with the client)
+loom {
+    runs {
+        server {
+            runDir "run-server"
+        }
+    }
+}

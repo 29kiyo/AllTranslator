@@ -1,37 +1,28 @@
 package com.kiyo.alltranslator.modjarlang;
 
+import com.kiyo.alltranslator.AllTranslator;
 import dev.architectury.platform.Mod;
 import dev.architectury.platform.Platform;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.ZipFile;
 
 /**
- * Scans every currently-loaded mod's own jar/root paths (Architectury's
- * Platform.getMods()/Mod#getFilePaths() - confirmed identical across Fabric and
- * NeoForge via javap, no loader-specific implementation needed; see
- * ARCHITECTURE.md's "Mod jar lang bulk translation" section) for
- * assets/<modId>/lang/en_us.json, and reports which mods do NOT already ship a
- * lang file for the given target language in that SAME location.
+ * Scans every loaded mod (Architectury Platform.getMods()/Mod#getFilePaths()) for
+ * assets/<modId>/lang/en_us.json, and reports which mods do NOT already ship a lang
+ * file for the given target language in that SAME location.
  *
- * ASSUMPTION carried over from ModNioPackResources' own use of these same Mod
- * root Paths for direct file access (Fabric loader internals): Files.exists/
- * isRegularFile work directly on these Paths without any extra FileSystem-open
- * step, since the loader already keeps their backing jar filesystem open for the
- * lifetime of the game. Not yet exercised against a real jar-backed Path by this
- * class specifically - first real-world test (running the scanner against CTOV)
- * will confirm this.
+ * Mod#getFilePaths() is NOT identical across loaders (verified on a real run):
+ * Fabric/dev folders give a directory root, but NeoForge gives the mod's jar FILE
+ * itself. Directory roots are read with Files; jar files are read with ZipFile
+ * (no FileSystem is opened, so nothing has to be kept open after the scan).
  *
- * Deliberately does not consult GeneratedLangPackStore (our own generated-pack
- * output) here - whether a mod ships no target-language file in its OWN jar is
- * true regardless of what we may have already generated for it separately. It is
- * ModJarLangTranslationCoordinator's job to then check the store and skip actual
- * (re-)translation work when a matching up-to-date generated file already exists.
- *
- * AllTranslator's own bundled lang files (assets/alltranslator/lang/*) are
- * naturally excluded: this mod always ships every language it supports itself.
+ * Deliberately does not consult GeneratedLangPackStore: whether a mod ships no
+ * target-language file in its own jar is true regardless of what we generated.
  */
 public final class ModJarLangScanner {
 
@@ -43,18 +34,34 @@ public final class ModJarLangScanner {
         List<ModJarLangCandidate> candidates = new ArrayList<>();
         for (Mod mod : Platform.getMods()) {
             String modId = mod.getModId();
+            String langDir = "assets/" + modId + "/lang/";
             for (Path root : mod.getFilePaths()) {
-                Path sourcePath = root.resolve("assets").resolve(modId).resolve("lang").resolve(SOURCE_LANG + ".json");
-                if (!Files.isRegularFile(sourcePath)) {
-                    continue;
-                }
-                Path targetPath = root.resolve("assets").resolve(modId).resolve("lang").resolve(targetLangCode + ".json");
-                if (Files.exists(targetPath)) {
-                    // This mod already ships the target language itself; nothing to do.
+                if (Files.isDirectory(root)) {
+                    Path dir = root.resolve("assets").resolve(modId).resolve("lang");
+                    Path sourcePath = dir.resolve(SOURCE_LANG + ".json");
+                    if (!Files.isRegularFile(sourcePath)) {
+                        continue;
+                    }
+                    if (Files.exists(dir.resolve(targetLangCode + ".json"))) {
+                        break; // mod already ships the target language
+                    }
+                    candidates.add(new ModJarLangCandidate(modId, sourcePath, null));
                     break;
+                } else if (Files.isRegularFile(root)) {
+                    try (ZipFile zip = new ZipFile(root.toFile())) {
+                        String sourceEntry = langDir + SOURCE_LANG + ".json";
+                        if (zip.getEntry(sourceEntry) == null) {
+                            continue;
+                        }
+                        if (zip.getEntry(langDir + targetLangCode + ".json") != null) {
+                            break; // mod already ships the target language
+                        }
+                        candidates.add(new ModJarLangCandidate(modId, root, sourceEntry));
+                        break;
+                    } catch (IOException | RuntimeException e) {
+                        AllTranslator.LOGGER.warn("Mod jar lang: could not read " + root + " for mod " + modId, e);
+                    }
                 }
-                candidates.add(new ModJarLangCandidate(modId, sourcePath));
-                break; // one en_us.json per mod is enough; don't scan remaining root paths.
             }
         }
         return candidates;

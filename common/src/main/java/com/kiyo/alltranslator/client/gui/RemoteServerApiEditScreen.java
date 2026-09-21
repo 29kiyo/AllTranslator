@@ -87,9 +87,19 @@ public final class RemoteServerApiEditScreen extends Screen {
         ProviderType initialProvider = existing != null ? existing.provider() : ProviderType.GENERIC_REST;
         providerButton = CycleButton.<ProviderType>builder(RemoteServerApiEditScreen::displayNameFor, initialProvider)
                 .withValues(ProviderType.values())
-                .create(fieldX, y + 11, 200, 20, Component.translatable("gui.alltranslator.apiedit.provider"),
+                .create(fieldX, y + 11, 110, 20, Component.translatable("gui.alltranslator.apiedit.provider"),
                         (button, value) -> updateFieldAvailability());
         this.addRenderableWidget(providerButton);
+        this.addRenderableWidget(
+                Button.builder(Component.literal("<"), button -> onPreviousProvider())
+                        .pos(fieldX + 114, y + 11)
+                        .size(20, 20)
+                        .build());
+        this.addRenderableWidget(
+                Button.builder(Component.translatable("gui.alltranslator.apiedit.default_url"), button -> onFillDefaultEndpoint())
+                        .pos(fieldX + 138, y + 11)
+                        .size(62, 20)
+                        .build());
         y += blockHeight;
 
         labelEndpointY = y;
@@ -144,6 +154,27 @@ public final class RemoteServerApiEditScreen extends Screen {
                         .build());
 
         updateFieldAvailability();
+    }
+
+    private void onPreviousProvider() {
+        ProviderType[] values = ProviderType.values();
+        ProviderType current = providerButton.getValue();
+        int idx = 0;
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] == current) {
+                idx = i;
+                break;
+            }
+        }
+        providerButton.setValue(values[(idx - 1 + values.length) % values.length]);
+        updateFieldAvailability();
+    }
+
+    private void onFillDefaultEndpoint() {
+        String defaultEndpoint = ApiEditScreen.defaultEndpointFor(providerButton.getValue());
+        if (defaultEndpoint != null) {
+            endpointBox.setValue(defaultEndpoint);
+        }
     }
 
     private void updateFieldAvailability() {

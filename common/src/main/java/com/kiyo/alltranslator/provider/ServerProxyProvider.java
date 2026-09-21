@@ -49,7 +49,7 @@ public final class ServerProxyProvider implements TranslationProvider {
     public CompletableFuture<TranslationResult> translate(TranslationRequest request, TranslationApiConfig config,
                                                             String rawApiKey, InFlightCallRegistry registry) {
         if (!NetworkManager.canServerReceive(ServerProxyPayloads.Request.TYPE)) {
-            return CompletableFuture.failedFuture(new TranslationException(ApiFailureType.CONFIG_ERROR, -1,
+            return CompletableFuture.failedFuture(new TranslationException(ApiFailureType.TEMP_UNAVAILABLE, -1,
                     "Joined server does not support All Translator's server-proxy translation feature "
                             + "(not running All Translator, or serverProxyTranslationEnabled is off)."));
         }
@@ -75,7 +75,7 @@ public final class ServerProxyProvider implements TranslationProvider {
                 .whenComplete((r, e) -> ClientProxyResponseRegistry.cancel(requestId))
                 .thenApply(response -> {
                     if (!response.success()) {
-                        throw new TranslationException(ApiFailureType.CONFIG_ERROR, -1,
+                        throw new TranslationException(ApiFailureType.TEMP_UNAVAILABLE, -1,
                                 "Server declined the proxy translation request "
                                         + "(feature disabled server-side, or the server's own translate attempt failed).");
                     }
@@ -89,6 +89,9 @@ public final class ServerProxyProvider implements TranslationProvider {
         if (error instanceof TimeoutException) {
             return ApiFailureType.TEMP_UNAVAILABLE;
         }
-        return ApiFailureType.CONFIG_ERROR;
+        // Every proxy failure (server not joined / feature off / timeout) depends on the server
+        // we are connected to right now, never on this API entry itself, so it is never a permanent
+        // problem: cool down and retry instead of disabling until the config is edited.
+        return ApiFailureType.TEMP_UNAVAILABLE;
     }
 }

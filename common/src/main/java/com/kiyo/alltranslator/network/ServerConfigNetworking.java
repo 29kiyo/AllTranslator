@@ -5,6 +5,7 @@ import com.kiyo.alltranslator.AllTranslator;
 import com.kiyo.alltranslator.AllTranslatorCore;
 import com.kiyo.alltranslator.config.ConfigManager;
 import com.kiyo.alltranslator.config.ConfigModel;
+import com.kiyo.alltranslator.service.TranslationApiConfig;
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
@@ -61,6 +62,42 @@ public final class ServerConfigNetworking {
         NetworkManager.sendToPlayer(player, new ServerConfigPayloads.OpenScreen(json));
     }
 
+    /**
+     * The client is never trusted with credential references. An entry keeps its
+     * credentialId only if the same id already exists on the server with the same
+     * provider and endpoint; anything else (new entry, changed provider or endpoint)
+     * is detached and must be re-attached by an admin on the server machine. Without
+     * this, an OP could point a keyed entry at an endpoint of their own.
+     */
+    private static void sanitizeCredentialRefs(ConfigModel current, ConfigModel incoming) {
+        if (incoming.apis == null) {
+            return;
+        }
+        for (TranslationApiConfig in : incoming.apis) {
+            if (in == null) {
+                continue;
+            }
+            TranslationApiConfig old = null;
+            if (current.apis != null) {
+                for (TranslationApiConfig c : current.apis) {
+                    if (c != null && c.id() != null && c.id().equals(in.id())) {
+                        old = c;
+                        break;
+                    }
+                }
+            }
+            boolean same = old != null
+                    && old.provider() == in.provider()
+                    && java.util.Objects.equals(old.endpoint(), in.endpoint());
+            java.util.UUID keep = same ? old.credentialId() : null;
+            if (in.credentialId() != null && !java.util.Objects.equals(in.credentialId(), keep)) {
+                AllTranslator.LOGGER.warn("ServerConfigNetworking: detached the credential reference of API entry '"
+                        + in.displayName() + "' (new entry, or provider/endpoint changed)");
+            }
+            in.setCredentialId(keep);
+        }
+    }
+
     private static void handleSaveOnServer(ServerConfigPayloads.Save payload, NetworkManager.PacketContext context) {
         context.queue(() -> {
             if (!(context.getPlayer() instanceof ServerPlayer sender)) {
@@ -88,6 +125,7 @@ public final class ServerConfigNetworking {
             }
 
             ConfigManager configManager = AllTranslatorCore.configManager();
+            sanitizeCredentialRefs(configManager.model(), parsed);
             configManager.replaceModel(parsed);
             configManager.save();
 

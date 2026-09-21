@@ -218,6 +218,10 @@ public final class ApiEditScreen extends Screen {
                 : Component.translatable("gui.alltranslator.apiedit.api_key_blank_none");
         apiKeyBox = new EditBox(this.font, fieldX, y + 11, fieldWidth, 20, Component.translatable("gui.alltranslator.apiedit.api_key"));
         apiKeyBox.setMaxLength(512);
+        // Hide the key with '*' once the field loses focus (same length, so the cursor stays valid).
+        apiKeyBox.addFormatter((text, displayPos) -> apiKeyBox.isFocused()
+                ? net.minecraft.util.FormattedCharSequence.forward(text, net.minecraft.network.chat.Style.EMPTY)
+                : net.minecraft.util.FormattedCharSequence.forward("*".repeat(text.length()), net.minecraft.network.chat.Style.EMPTY));
         apiKeyBox.setValue("");
         apiKeyBox.setTextColorUneditable(0xFF707070);
         this.addRenderableWidget(apiKeyBox);
@@ -307,8 +311,15 @@ public final class ApiEditScreen extends Screen {
     }
 
     private void onFillDefaultEndpoint() {
-        ProviderType provider = providerButton.getValue();
-        String defaultEndpoint = switch (provider) {
+        String defaultEndpoint = defaultEndpointFor(providerButton.getValue());
+        if (defaultEndpoint != null) {
+            endpointBox.setValue(defaultEndpoint);
+        }
+    }
+
+    /** Default endpoint per provider (also used by RemoteServerApiEditScreen); null = none. */
+    static String defaultEndpointFor(ProviderType provider) {
+        return switch (provider) {
             case GOOGLE_CLOUD_V2 -> "https://translation.googleapis.com/language/translate/v2";
             case DEEPL_COMPATIBLE -> "https://api-free.deepl.com/v2/translate";
             case GOOGLE_WEB_FREE -> "https://translate.googleapis.com/translate_a/single";
@@ -330,9 +341,6 @@ public final class ApiEditScreen extends Screen {
             // not a URL).
             case SERVER_PROXY -> null;
         };
-        if (defaultEndpoint != null) {
-            endpointBox.setValue(defaultEndpoint);
-        }
     }
 
     /**
