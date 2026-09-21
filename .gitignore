@@ -39,3 +39,4 @@ config/alltranslator/credentials.json
 build_log.txt
 
 run-server/
+tools/recipe-viewers/
