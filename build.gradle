@@ -30,6 +30,11 @@ subprojects {
         // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
         // See https://docs.gradle.org/current/userguide/declaring_repositories.html
         // for more information about repositories.
+        maven {
+            // Phase 14: JEI API (compileOnly, optional integration). See ARCHITECTURE.md §26.5.
+            name = "Jared's maven"
+            url = "https://maven.blamejared.com/"
+        }
     }
 
     dependencies {
