@@ -122,6 +122,7 @@ public final class ApiEditScreen extends Screen {
         return switch (type) {
             case OPENAI_COMPATIBLE -> Component.translatable("gui.alltranslator.apiedit.provider_chatgpt");
             case OPENAI_COMPATIBLE_LOCAL -> Component.translatable("gui.alltranslator.apiedit.provider_local");
+            case OLLAMA -> Component.translatable("gui.alltranslator.apiedit.provider_ollama");
             case SERVER_PROXY -> Component.translatable("gui.alltranslator.apiedit.provider_server_proxy");
             default -> Component.literal(type.name());
         };
@@ -140,7 +141,7 @@ public final class ApiEditScreen extends Screen {
      *   GEMINI                  - key required, no model field (baked into endpoint URL)
      */
     private static boolean requiresApiKey(ProviderType type) {
-        return type != ProviderType.GOOGLE_WEB_FREE && type != ProviderType.OPENAI_COMPATIBLE_LOCAL
+        return type != ProviderType.GOOGLE_WEB_FREE && (type != ProviderType.OPENAI_COMPATIBLE_LOCAL && type != ProviderType.OLLAMA)
                 && type != ProviderType.SERVER_PROXY;
     }
 
@@ -155,7 +156,7 @@ public final class ApiEditScreen extends Screen {
 
     private static boolean usesModelField(ProviderType type) {
         return type == ProviderType.OPENAI_COMPATIBLE
-                || type == ProviderType.OPENAI_COMPATIBLE_LOCAL
+                || (type == ProviderType.OPENAI_COMPATIBLE_LOCAL || type == ProviderType.OLLAMA)
                 || type == ProviderType.ANTHROPIC;
     }
 
@@ -331,6 +332,7 @@ public final class ApiEditScreen extends Screen {
             // use different ports - this is a documented, editable starting point,
             // not a claim that every local server listens here.
             case OPENAI_COMPATIBLE_LOCAL -> "http://localhost:1234/v1/chat/completions";
+            case OLLAMA -> "http://localhost:11434/v1/chat/completions";
             // GENERIC_REST intentionally has no default: it is a fully generic
             // flat-JSON REST client configured entirely via extraParams
             // (requestTemplate/authHeader/authPrefix/responseField), not an

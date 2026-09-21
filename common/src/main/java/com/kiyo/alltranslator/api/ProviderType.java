@@ -18,6 +18,14 @@ public enum ProviderType {
      * behavior for already-configured users.
      */
     OPENAI_COMPATIBLE_LOCAL,
+    /**
+     * Phase 14: Ollama, through its OpenAI-compatible /v1/chat/completions endpoint
+     * (default port 11434). Same wire protocol as OPENAI_COMPATIBLE_LOCAL (handled by
+     * OpenAiCompatibleProvider, API key optional), kept as its own constant so the UI
+     * can show a separate name and default URL. NOT verified against a real Ollama
+     * install in this project.
+     */
+    OLLAMA,
     GOOGLE_WEB_FREE,
     GOOGLE_CLOUD_V2,
     ANTHROPIC,

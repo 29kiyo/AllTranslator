@@ -15,6 +15,8 @@ public final class ProviderFactory {
         // see ProviderType's Javadoc for the verification caveat). Same wire protocol,
         // API key optional.
         map.put(ProviderType.OPENAI_COMPATIBLE_LOCAL, new OpenAiCompatibleProvider(httpClient, ProviderType.OPENAI_COMPATIBLE_LOCAL, false));
+        // Phase 14: Ollama (OpenAI-compatible mode). Same protocol, API key optional.
+        map.put(ProviderType.OLLAMA, new OpenAiCompatibleProvider(httpClient, ProviderType.OLLAMA, false));
         map.put(ProviderType.GENERIC_REST, new GenericRestProvider(httpClient));
         map.put(ProviderType.GOOGLE_WEB_FREE, new GoogleWebFreeProvider(httpClient));
         map.put(ProviderType.DEEPL_COMPATIBLE, new DeepLCompatibleProvider(httpClient));

@@ -56,7 +56,7 @@ public final class RemoteServerApiEditScreen extends Screen {
 
     private static boolean usesModelField(ProviderType type) {
         return type == ProviderType.OPENAI_COMPATIBLE
-                || type == ProviderType.OPENAI_COMPATIBLE_LOCAL
+                || (type == ProviderType.OPENAI_COMPATIBLE_LOCAL || type == ProviderType.OLLAMA)
                 || type == ProviderType.ANTHROPIC;
     }
 
@@ -64,6 +64,7 @@ public final class RemoteServerApiEditScreen extends Screen {
         return switch (type) {
             case OPENAI_COMPATIBLE -> Component.translatable("gui.alltranslator.apiedit.provider_chatgpt");
             case OPENAI_COMPATIBLE_LOCAL -> Component.translatable("gui.alltranslator.apiedit.provider_local");
+            case OLLAMA -> Component.translatable("gui.alltranslator.apiedit.provider_ollama");
             case SERVER_PROXY -> Component.translatable("gui.alltranslator.apiedit.provider_server_proxy");
             default -> Component.literal(type.name());
         };

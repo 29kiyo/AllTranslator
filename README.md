@@ -21,7 +21,7 @@ Google Translate Web版など)はご自身で設定画面から登録してく�
 - **複数API設定 + 自動フェイルオーバー**: 優先度付きで複数のAPIを登録でき、
   レート制限・クォータ超過・認証失敗などに応じて自動的に次のAPIへ切り替えます。
   一定時間後に自動で復帰を試みます。
-- **対応プロバイダ**: OpenAI互換(ChatGPT用とローカル用(LM Studio等)は別プロバイダ)、
+- **対応プロバイダ**: OpenAI互換(ChatGPT用)、LM Studio、Ollama、
   Anthropic(Claude)、Gemini、DeepL、Google Cloud Translation v2、
   Google Translate Web版(無償・非公式、チャット専用)、汎用REST、サーバー経由(プロキシ)。
 - **サーバー対応**: サーバー側per-player翻訳、プレイヤーごとの言語設定、
@@ -138,9 +138,13 @@ Google Translate Web版など)はご自身で設定画面から登録してく�
 
 ### プロバイダ
 
-- **OpenAI互換(ChatGPT用/ローカル用)**: 実機で動作確認済みです。ローカル用(LM Studio)は、
+- **OpenAI互換(ChatGPT用)・LM Studio**: 実機で動作確認済みです。LM Studio(以前の「ローカル」)は、
   APIキー省略時に `Authorization` ヘッダを送りません。`llama.cpp`(llama-server)は
   同じプロトコルを提供しているとされますが、未検証です。
+  以前の「ローカル」の設定は、そのまま使えます(表示名だけが「LM Studio」に変わります)。
+- **Ollama**: OpenAI互換のエンドポイント(既定は `http://localhost:11434/v1/chat/completions`)を使う実装ですが、
+  **実機では未検証**です(開発環境にOllamaが無いため)。「モデル取得」ボタンは、Ollama側の `/v1/models` への対応を
+  確認できていません。うまく動かない場合は、モデル名を直接入力してください。
 - **Google Translate Web版(無償・非公式)**: 実機で動作確認済みですが、無償・非公式・無契約の
   エンドポイントのため、IPベース等の理由で予告なくレート制限(HTTP 429)がかかることがあります。
   Mod側のバグではなく、外部エンドポイント側の制約です。Google側の仕様変更で
@@ -204,7 +208,6 @@ Google Translate Web版など)はご自身で設定画面から登録してく�
 
 ## 今後の予定(未実装。変更される場合があります)
 
-- ローカル用プロバイダを、LM StudioとOllamaに分ける
 - マルチAPIの分配モード(サーバー対応。エラーや異常な応答は別のAPIに再割り当て)
 - JEI/REIの検索で、翻訳後の文字でも元の文字でも検索できるようにする(対応版の有無を確認中)
 - サーバー側翻訳とクライアント側翻訳の二重適用の恒久修正
