@@ -133,7 +133,8 @@ public final class ServerChatTranslationCoordinator {
         String targetLang = languageResolver.resolve(recipient);
         Style bodyStyle = message.decoratedContent().getStyle();
         PlaceholderProtector.Protected protectedText = PlaceholderProtector.protect(plain);
-        TranslationRequest request = new TranslationRequest(protectedText.text(), null, targetLang);
+        TranslationRequest request = new TranslationRequest(protectedText.text(), null, targetLang,
+                com.kiyo.alltranslator.api.TranslationPurpose.CHAT);
 
         translationService.translate(request, false).whenComplete((result, error) -> {
             inFlight.remove(dedupeKey);

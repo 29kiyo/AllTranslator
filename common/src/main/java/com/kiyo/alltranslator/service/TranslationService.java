@@ -173,7 +173,7 @@ public CompletableFuture<TranslationResult> translate(TranslationRequest request
         CompletableFuture<TranslationResult> existing = pendingRequests.getOrRegister(cacheKey, newFuture);
         if (existing != null) return existing;
 
-        List<TranslationApiConfig> candidates = apiManager.getOrderedCandidates();
+        List<TranslationApiConfig> candidates = apiManager.getOrderedCandidates(request.purpose());
         if (excludeProvider != null) {
             candidates = candidates.stream()
                     .filter(c -> c.provider() != excludeProvider)

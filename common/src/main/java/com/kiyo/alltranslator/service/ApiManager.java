@@ -27,11 +27,18 @@ public final class ApiManager {
         states.keySet().retainAll(configs.keySet());
     }
 
-    /** Priority-ascending, enabled, and currently usable (available or cooldown expired). */
-    public List<TranslationApiConfig> getOrderedCandidates() {
+    /**
+     * Priority-ascending, enabled, and currently usable (available or cooldown expired).
+     * Providers that are only suitable for low-volume traffic (GOOGLE_WEB_FREE, an unofficial
+     * keyless endpoint that is rate limited per IP) are returned only for CHAT requests.
+     * The purpose is a required argument on purpose, so a caller cannot forget the filter.
+     */
+    public List<TranslationApiConfig> getOrderedCandidates(com.kiyo.alltranslator.api.TranslationPurpose purpose) {
         List<TranslationApiConfig> result = new ArrayList<>();
         for (TranslationApiConfig cfg : configs.values()) {
             if (!cfg.enabled()) continue;
+            if (cfg.provider() == com.kiyo.alltranslator.api.ProviderType.GOOGLE_WEB_FREE
+                    && purpose != com.kiyo.alltranslator.api.TranslationPurpose.CHAT) continue;
             ApiState state = states.get(cfg.id());
             if (state == null || state.isUsableNow()) {
                 result.add(cfg);
