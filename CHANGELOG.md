@@ -54,8 +54,8 @@
 - Anthropic・Gemini・DeepL・Google Cloud Translation v2は、実際のAPIキーでの動作確認は未実施。Ollamaも実機未検証
 - サーバー側翻訳のみ有効でクライアント側の設定が無効な場合、二重翻訳の可能性が残る
 - `/title` は、同じ文言の2回目の実行から翻訳される
-- NeoForgeでの確認は一部の機能に限られる(JEI連携もビルドのみ)
-- JEI連携: REIは未実装(別名のAPIが無い)。JEIは別名をツールチップにも表示する(この表示だけを消す設定は未実装。JEIの設定「Search Extra Ingredient Names」で、検索と表示の両方をオフにできる)
+- NeoForgeでの確認は一部の機能に限られる
+- JEI連携: REIは非対応(別名のAPIが無いことを確認済み)。JEIは別名をツールチップにも表示する(表示だけを消す設定は実装しない方針。JEIの設定「Search Extra Ingredient Names」で、検索と表示の両方をオフにできる)
 
 ## [v1.0.0] - 初回リリース
 

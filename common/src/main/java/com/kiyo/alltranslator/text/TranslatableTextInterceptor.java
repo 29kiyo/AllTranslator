@@ -68,7 +68,7 @@ public final class TranslatableTextInterceptor {
     /** Phase 13 fix: shared across ALL instances (see class Javadoc). */
     private static final Set<String> knownOutputs = ConcurrentHashMap.newKeySet();
     /** Phase 14 diagnostic only (temporary): first-seen timestamp per not-yet-done cache key. */
-    private static final ConcurrentHashMap<String, Long> STUCK_TRACKING = new ConcurrentHashMap<>();
+
 
     public TranslatableTextInterceptor(LocalizedTextResolver resolver, LanguageResolver languageResolver) {
         this.resolver = resolver;
@@ -112,17 +112,8 @@ public final class TranslatableTextInterceptor {
         CompletableFuture<String> future = byCacheKey.computeIfAbsent(cacheKey,
                 k -> resolver.resolve(key, plain));
         if (!future.isDone()) {
-            // Phase 14 diagnostic: if a future sits here !isDone() for a very long
-            // time, something is permanently stuck and this text will silently
-            // never be retried - see the investigation this is temporarily added for.
-            long ageMillis = System.currentTimeMillis() - STUCK_TRACKING.computeIfAbsent(cacheKey, k -> System.currentTimeMillis());
-            if (ageMillis > 15000) {
-                com.kiyo.alltranslator.AllTranslator.LOGGER.warn("[AT-DEBUG] STUCK (never completing) translation future for '"
-                        + plain + "' (targetLang=" + targetLang + "), age=" + ageMillis + "ms, future=" + future);
-            }
             return original;
         }
-        STUCK_TRACKING.remove(cacheKey);
         String translated = future.getNow(plain);
         if (translated == null || translated.equals(plain)) {
             // Phase 13 fix (real-world bug, e.g. Traveler's Backpack "Lantern Upgrade"
