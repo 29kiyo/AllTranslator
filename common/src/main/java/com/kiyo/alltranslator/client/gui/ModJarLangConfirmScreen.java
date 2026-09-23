@@ -41,7 +41,7 @@ public final class ModJarLangConfirmScreen extends Screen {
     private static final int SUBTLE_COLOR = 0xFFAAAAAA;
     private static final int ROW_HEIGHT = 24;
     private static final int LIST_TOP = 56;
-    private static final int FOOTER_HEIGHT = 92;
+    private static final int FOOTER_HEIGHT = 136;
 
     private final Screen parent;
     private String targetLang;
@@ -66,6 +66,7 @@ public final class ModJarLangConfirmScreen extends Screen {
     private Button applyNowButton;
     private EditBox langBox;
     private Button langSetButton;
+    private Button apiSettingsButton;
 
     public ModJarLangConfirmScreen(Screen parent, String targetLang, List<ModJarLangPending> pending) {
         super(Component.translatable("gui.alltranslator.modjarlang.title"));
@@ -113,6 +114,11 @@ public final class ModJarLangConfirmScreen extends Screen {
         langSetButton = Button.builder(Component.translatable("gui.alltranslator.modjarlang.set_language"),
                 b -> applyLanguage()).pos(cx + 64, this.height - 78).size(90, 20).build();
         this.addRenderableWidget(langSetButton);
+
+        apiSettingsButton = Button.builder(Component.translatable("gui.alltranslator.modjarlang.open_api_settings"),
+                b -> this.minecraft.gui.setScreen(new AllTranslatorApiListScreen(this)))
+                .pos(cx - 75, this.height - 116).size(150, 20).build();
+        this.addRenderableWidget(apiSettingsButton);
 
         translateButton = Button.builder(Component.empty(), b -> startTranslation())
                 .pos(cx - 179, row2).size(150, 20).build();
@@ -183,6 +189,7 @@ public final class ModJarLangConfirmScreen extends Screen {
         applyNowButton.visible = confirm;
         langBox.visible = confirm;
         langSetButton.visible = confirm;
+        apiSettingsButton.visible = confirm;
         translateButton.visible = confirm;
         laterButton.visible = confirm;
         neverButton.visible = confirm;
@@ -312,7 +319,13 @@ public final class ModJarLangConfirmScreen extends Screen {
 
         ModEntry(ModJarLangPending item) {
             String modId = item.modId();
-            Component label = Component.literal(modId + " (" + item.keyCount() + ")");
+            // GAP candidates (ModJarLangCandidate#isGap()): the mod already ships a file for
+            // this language, only some keys were left untranslated - make that visibly
+            // distinct from a fully-missing language file so the user can tell "6 keys total"
+            // from "6 keys still untranslated out of a mostly-complete file".
+            Component label = item.candidate().isGap()
+                    ? Component.translatable("gui.alltranslator.modjarlang.entry_gap", modId, item.keyCount())
+                    : Component.translatable("gui.alltranslator.modjarlang.entry_missing", modId, item.keyCount());
             this.checkbox = Checkbox.builder(label, ModJarLangConfirmScreen.this.font)
                     .selected(selected.contains(modId))
                     .onValueChange((box, value) -> {

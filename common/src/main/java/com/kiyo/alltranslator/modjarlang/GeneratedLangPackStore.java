@@ -62,6 +62,17 @@ public final class GeneratedLangPackStore {
         return hashes != null && sourceHash.equals(hashes.get(targetLangCode));
     }
 
+    /**
+     * Merges translatedEntries into whatever this mod/language's generated file already
+     * contains, rather than overwriting it wholesale. Needed for GAP candidates
+     * (ModJarLangCandidate#isGap()): a later session may only re-translate a newly
+     * appeared gap key (e.g. the mod's own file changed and content-hash invalidated the
+     * old entry), and a previously-generated key for the SAME mod/language that is no
+     * longer part of the current gap set (e.g. the mod author fixed it upstream) should
+     * simply become dead weight harmlessly overridden by the mod's own now-correct value -
+     * never silently dropped by this method, since that value is not being regenerated in
+     * this pass and dropping it would leave nothing until the next full regeneration.
+     */
     public void write(String modId, String targetLangCode, Map<String, String> translatedEntries, String sourceHash) throws IOException {
         Path langDir = langDir(modId);
         Files.createDirectories(langDir);
@@ -69,9 +80,10 @@ public final class GeneratedLangPackStore {
         ensurePackIcon();
 
         Path targetFile = langDir.resolve(targetLangCode + ".json");
+        Map<String, String> merged = new TreeMap<>(readExisting(targetFile));
+        merged.putAll(translatedEntries);
         JsonObject obj = new JsonObject();
-        // TreeMap: stable, sorted key order across regenerations (easier to diff/review by hand).
-        new TreeMap<>(translatedEntries).forEach(obj::addProperty);
+        merged.forEach(obj::addProperty);
         try (Writer w = Files.newBufferedWriter(targetFile, StandardCharsets.UTF_8)) {
             GSON.toJson(obj, w);
         }
@@ -118,6 +130,24 @@ public final class GeneratedLangPackStore {
 
     private Path langDir(String modId) {
         return baseDir.resolve("assets").resolve(modId).resolve("lang");
+    }
+
+    private static Map<String, String> readExisting(Path targetFile) {
+        if (!Files.isRegularFile(targetFile)) return new TreeMap<>();
+        try (Reader r = Files.newBufferedReader(targetFile, StandardCharsets.UTF_8)) {
+            Map<String, String> result = new TreeMap<>();
+            JsonObject obj = JsonParser.parseReader(r).getAsJsonObject();
+            for (var e : obj.entrySet()) {
+                if (e.getValue().isJsonPrimitive()) {
+                    result.put(e.getKey(), e.getValue().getAsString());
+                }
+            }
+            return result;
+        } catch (IOException | RuntimeException e) {
+            AllTranslator.LOGGER.warn("Mod jar lang: failed to read existing generated file " + targetFile
+                    + "; overwriting with only the newly translated entries", e);
+            return new TreeMap<>();
+        }
     }
 
     private Path hashFile() {

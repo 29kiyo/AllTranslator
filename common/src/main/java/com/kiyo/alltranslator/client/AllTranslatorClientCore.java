@@ -74,6 +74,12 @@ public final class AllTranslatorClientCore {
         TranslatableTextInterceptor bossBarNameInterceptor = new TranslatableTextInterceptor(
                 AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.languageResolver());
         AllTranslatorCore.installBossBarNameInterceptor(bossBarNameInterceptor);
+        // Phase 14 (active-effect list translation): dedicated interceptor instance, same
+        // "one instance per content category" pattern as above - see EffectNameMixin for
+        // the actual hook.
+        TranslatableTextInterceptor effectNameInterceptor = new TranslatableTextInterceptor(
+                AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.languageResolver());
+        AllTranslatorCore.installEffectNameInterceptor(effectNameInterceptor);
         // Phase 5: chat translation. Loader modules (fabric/neoforge) register the
         // actual receive-event listener and call AllTranslatorCore.chatTranslationCoordinator()
         // once this returns, since Fabric API's message events and NeoForge's

@@ -151,6 +151,8 @@ public final class ConfigModel {
      * meaningfully control).
      */
     public boolean translateBossBarNames = false;
+    /** Active-effect list in the inventory screen (EffectsInInventory), key-based dynamic text. */
+    public boolean translateEffectNames = false;
     /** Mod jar lang bulk translation: auto-show the confirmation screen on the title screen. */
     public boolean modJarLangPromptEnabled = true;
     /** Mod IDs the user unchecked in the confirmation screen; excluded from the auto prompt. */

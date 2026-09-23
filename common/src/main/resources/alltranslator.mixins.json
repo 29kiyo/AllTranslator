@@ -9,7 +9,8 @@
     "ChatComponentAccessor",
     "AdvancementToastMixin",
     "RecipeToastMixin",
-    "BossHealthOverlayMixin"
+    "BossHealthOverlayMixin",
+    "EffectNameMixin"
   ],
   "mixins": [
     "PlayerListMixin",

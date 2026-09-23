@@ -1,16 +1,10 @@
 package com.kiyo.alltranslator.modjarlang;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.kiyo.alltranslator.AllTranslator;
 import com.kiyo.alltranslator.lang.LocalizedTextResolver;
 
 import java.io.IOException;
-import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -29,10 +23,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * picked up for free via the existing ExistingTranslationChecker path, exactly
  * like any other Item/Block/UI key.
  *
+ * GAP candidates (ModJarLangCandidate#isGap()): only the untranslated (gap) keys -
+ * ModJarLangHashing#resolveGapKeys - are sent for translation and written to the
+ * generated pack. Every other key in the mod's own target-language file is left
+ * completely alone; Minecraft's own key-by-key lang merge across resource packs
+ * (verified real-machine this session, see ModJarLangCandidate's Javadoc) means the
+ * mod's own correctly-translated keys keep coming from the mod's own pack, while
+ * only the gap keys are overridden by this generated (required=true, TOP) pack.
+ *
  * Runs entirely client-side (this is UI-adjacent JSON content, not chat, per
  * ARCHITECTURE.md §9) - never call this from server-only code. Deliberately does
- * not gate on ConfigModel#translationEnabled itself; the caller (a future
- * opt-in-confirm flow, not yet implemented) decides when this runs at all.
+ * not gate on ConfigModel#translationEnabled itself; the caller (the opt-in-confirm
+ * flow, ModJarLangConfirmScreen) decides when this runs at all.
  */
 public final class ModJarLangTranslationCoordinator {
 
@@ -45,49 +47,55 @@ public final class ModJarLangTranslationCoordinator {
     }
 
     /**
-     * Translates one candidate mod's en_us.json into targetLangCode, if (and only
-     * if) no up-to-date generated file already exists for it. Returns a future
-     * that completes with true if a NEW file was written (caller should trigger a
-     * resource-pack reload), or false if nothing changed (already up to date, or
-     * the source file could not be read/parsed).
+     * Translates the keys this candidate actually needs (all of en_us.json for MISSING, only
+     * the gap keys for GAP - see ModJarLangHashing#resolveGapKeys) into targetLangCode, if (and
+     * only if) no up-to-date generated file already exists for it. Returns a future that
+     * completes with true if a NEW file was written (caller should trigger a resource-pack
+     * reload), or false if nothing changed (already up to date, or the source/target file
+     * could not be read/parsed).
      */
     public CompletableFuture<Boolean> translateIfNeeded(ModJarLangCandidate candidate, String targetLangCode) {
-        String rawSourceJson;
-        try {
-            rawSourceJson = candidate.readSource();
-        } catch (IOException e) {
-            AllTranslator.LOGGER.warn("Mod jar lang: failed to read " + candidate.sourceLangFile()
-                    + " for mod " + candidate.modId(), e);
-            return CompletableFuture.completedFuture(false);
-        }
-
-        String sourceHash = GeneratedLangPackStore.sha256(rawSourceJson);
-        if (store.isUpToDate(candidate.modId(), targetLangCode, sourceHash)) {
-            return CompletableFuture.completedFuture(false);
-        }
-
+        String contentHash;
         Map<String, String> sourceEntries;
         try {
-            JsonObject obj = JsonParser.parseReader(new StringReader(rawSourceJson)).getAsJsonObject();
-            sourceEntries = new HashMap<>();
-            for (var entry : obj.entrySet()) {
-                if (entry.getValue().isJsonPrimitive()) {
-                    sourceEntries.put(entry.getKey(), entry.getValue().getAsString());
-                }
-            }
+            contentHash = ModJarLangHashing.contentHash(candidate);
+            sourceEntries = ModJarLangHashing.resolveGapKeys(candidate); // for MISSING this is just "all keys"
+        } catch (IOException e) {
+            AllTranslator.LOGGER.warn("Mod jar lang: failed to read lang files for mod " + candidate.modId(), e);
+            return CompletableFuture.completedFuture(false);
         } catch (RuntimeException e) {
-            AllTranslator.LOGGER.warn("Mod jar lang: failed to parse " + candidate.sourceLangFile()
-                    + " for mod " + candidate.modId() + " as a flat string map; skipping", e);
+            AllTranslator.LOGGER.warn("Mod jar lang: failed to parse lang json for mod "
+                    + candidate.modId() + " as a flat string map; skipping", e);
+            return CompletableFuture.completedFuture(false);
+        }
+
+        if (store.isUpToDate(candidate.modId(), targetLangCode, contentHash)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (sourceEntries.isEmpty()) {
             return CompletableFuture.completedFuture(false);
         }
 
         Map<String, String> translated = new ConcurrentHashMap<>();
         final Map<String, String> sourceSnapshot = sourceEntries;
-        if (sourceSnapshot.isEmpty()) {
-            return CompletableFuture.completedFuture(false);
-        }
-        java.util.function.BiFunction<String, String, CompletableFuture<Void>> translateOne = (key, value) ->
-                localizedTextResolver.resolve(key, value)
+        // GAP candidates (ModJarLangCandidate#isGap()) must bypass the existing-translation-
+        // file check: a gap key's whole reason for being flagged is that the mod's OWN
+        // target-language file already has a (untranslated, en_us-identical) value for it -
+        // the normal resolve(key, value) would immediately find and return that same value
+        // unchanged, never reaching cache/API at all (confirmed real-machine, see
+        // resolveForceApi's Javadoc). MISSING candidates keep using the normal keyed
+        // resolve(), which still benefits from any existing translation available from some
+        // OTHER currently-loaded pack for the same key.
+        java.util.function.BiFunction<String, String, CompletableFuture<Void>> translateOne = candidate.isGap()
+                ? (key, value) -> localizedTextResolver.resolveForceApi(value)
+                        .thenAccept(result -> translated.put(key, result))
+                        .exceptionally(ex -> {
+                            AllTranslator.LOGGER.warn("Mod jar lang: translation failed for key " + key
+                                    + " (mod " + candidate.modId() + "); keeping original text", ex);
+                            translated.put(key, value);
+                            return null;
+                        })
+                : (key, value) -> localizedTextResolver.resolve(key, value)
                         .thenAccept(result -> translated.put(key, result))
                         .exceptionally(ex -> {
                             AllTranslator.LOGGER.warn("Mod jar lang: translation failed for key " + key
@@ -120,9 +128,10 @@ public final class ModJarLangTranslationCoordinator {
                         return false;
                     }
                     try {
-                        store.write(candidate.modId(), targetLangCode, translated, sourceHash);
+                        store.write(candidate.modId(), targetLangCode, translated, contentHash);
                         AllTranslator.LOGGER.info("Mod jar lang: generated " + targetLangCode + ".json for mod "
-                                + candidate.modId() + " (" + translated.size() + " keys)");
+                                + candidate.modId() + " (" + translated.size() + " keys, "
+                                + (candidate.isGap() ? "gap-fill" : "full") + ")");
                         return true;
                     } catch (IOException e) {
                         AllTranslator.LOGGER.warn("Mod jar lang: failed to write generated pack for mod "

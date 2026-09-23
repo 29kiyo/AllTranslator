@@ -84,6 +84,10 @@ public final class AllTranslatorCore {
     // AllTranslatorClientCore#init() (client-side only), same null-on-dedicated-server
     // guarantee as the interceptors above. Backs BossHealthOverlayMixin.
     private static TranslatableTextInterceptor bossBarNameInterceptor;
+    // Phase 14 (active-effect list translation, Fabric re-verification follow-up):
+    // installed only by AllTranslatorClientCore#init() (client-side only), same
+    // null-on-dedicated-server guarantee as the interceptors above. Backs EffectNameMixin.
+    private static TranslatableTextInterceptor effectNameInterceptor;
 
     // Phase 5: installed only by AllTranslatorClientCore#init() (client-side only),
     // same null-on-dedicated-server guarantee as the interceptors above.
@@ -266,6 +270,13 @@ public final class AllTranslatorCore {
     }
 
     public static TranslatableTextInterceptor bossBarNameInterceptor() { return bossBarNameInterceptor; }
+
+    /** Called only from AllTranslatorClientCore#init() (client-side only). */
+    public static synchronized void installEffectNameInterceptor(TranslatableTextInterceptor interceptor) {
+        effectNameInterceptor = interceptor;
+    }
+
+    public static TranslatableTextInterceptor effectNameInterceptor() { return effectNameInterceptor; }
 
     /** Called only from AllTranslatorClientCore#init() (client-side only). */
     public static synchronized void installChatTranslationCoordinator(ChatTranslationCoordinator coordinator) {

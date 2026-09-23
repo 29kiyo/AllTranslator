@@ -83,9 +83,32 @@ public final class LocalizedTextResolver {
      *                   the rest of the line as surrounding context.
      */
     public CompletableFuture<String> resolve(String key, String sourceText) {
+        return resolve(key, sourceText, true);
+    }
+
+    /**
+     * Mod jar lang bulk translation, GAP case (ModJarLangCandidate#isGap(),
+     * ModJarLangTranslationCoordinator): a gap key already has a value in the mod's OWN
+     * target-language file - the untranslated, en_us-identical value that IS the reason
+     * this key was flagged as a gap in the first place. Calling the normal resolve() for
+     * such a key would immediately hit checkExisting=true's existing-translation-file
+     * lookup, find that same untranslated value, and return it completely unchanged -
+     * confirmed real-machine (Traveler's Backpack: 161 gap keys, zero ever reached the
+     * translation API, all fell straight back to their original English value via this
+     * exact path). This overload skips the existing-translation-file check entirely so
+     * the key is forced through cache/API/original like a genuinely keyless dynamic
+     * string, while still keeping the mod-language-key-based cache entry (via
+     * TranslationRequest/TranslationService, unaffected by this parameter) for later
+     * reuse.
+     */
+    public CompletableFuture<String> resolveForceApi(String sourceText) {
+        return resolve(null, sourceText, false);
+    }
+
+    private CompletableFuture<String> resolve(String key, String sourceText, boolean checkExisting) {
         String targetLang = languageResolver.resolveTargetLanguage();
 
-        if (key != null) {
+        if (checkExisting && key != null) {
             String existing = existingTranslationChecker.check(key, targetLang);
             if (existing != null) {
                 return CompletableFuture.completedFuture(existing);
@@ -97,7 +120,7 @@ public final class LocalizedTextResolver {
         }
 
         if (LEGACY_CODE_PATTERN.matcher(sourceText).find()) {
-            return resolveWithEmbeddedColorCodes(sourceText);
+            return resolveWithEmbeddedColorCodes(sourceText, checkExisting);
         }
 
         TranslationRequest request = new TranslationRequest(sourceText, null, targetLang);
@@ -105,7 +128,7 @@ public final class LocalizedTextResolver {
                 .thenApply(TranslationResult::translatedText);
     }
 
-    private CompletableFuture<String> resolveWithEmbeddedColorCodes(String sourceText) {
+    private CompletableFuture<String> resolveWithEmbeddedColorCodes(String sourceText, boolean checkExisting) {
         List<Segment> segments = splitByLegacyCodes(sourceText);
         List<CompletableFuture<String>> segmentFutures = new ArrayList<>(segments.size());
         for (Segment segment : segments) {
@@ -118,7 +141,7 @@ public final class LocalizedTextResolver {
                 // does not apply per-fragment. Still goes through this same
                 // resolve() method otherwise, so fragment-level cache/API
                 // handling is identical to any other keyless dynamic text.
-                segmentFutures.add(resolve(null, segment.text()));
+                segmentFutures.add(resolve(null, segment.text(), checkExisting));
             }
         }
         return CompletableFuture.allOf(segmentFutures.toArray(new CompletableFuture[0]))
