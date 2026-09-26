@@ -251,4 +251,4 @@ Architectury(common/fabric/neoforge)構成。ビルドは以下:
 
 ## ライセンス
 
-(ライセンスを記載してください)
+[GNU Lesser General Public License v3.0](LICENSE)
