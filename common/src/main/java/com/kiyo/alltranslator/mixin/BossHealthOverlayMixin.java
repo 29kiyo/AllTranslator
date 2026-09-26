@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.BossHealthOverlay;
 import net.minecraft.client.gui.components.LerpingBossEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -40,13 +41,29 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * constraint already established for chat/tooltip/entity-name translation
  * (ARCHITECTURE.md §9).
  *
- * Treated as key-less dynamic text (ARCHITECTURE.md §3): by the time a boss bar name
- * reaches this call it is a plain Component with no Minecraft translation key of its
- * own (vanilla bosses construct their BossEvent's name from an already-resolved
- * Component, and mod bosses may supply arbitrary literal text), so it always goes
- * through TranslatableTextInterceptor#intercept(original, null) exactly like
- * chat/tellraw, never through ExistingTranslationChecker's keyed existing-translation
- * path.
+ * Phase 13相当セッション(2026-09-26)修正: originally this always called
+ * intercept(original, null), treating every boss bar name as keyless dynamic text
+ * (ARCHITECTURE.md §3) regardless of source. Real-world testing found this wrong for
+ * vanilla bosses: the client-side Component for e.g. the Wither still carries its
+ * original TranslatableContents (key "entity.minecraft.wither") - Minecraft's
+ * component network codec preserves TranslatableContents across the wire rather than
+ * flattening it to a literal string, so ClientboundBossEventPacket's payload arrives
+ * on the client with the key intact. Always forcing key=null meant
+ * ExistingTranslationChecker (and therefore vanilla's own official ja_jp translation,
+ * e.g. "ウィザー") was never consulted, so every boss name - including ones Minecraft
+ * itself already knows how to localize - was sent to the translation API as a bare
+ * English word. Observed real-machine result: "Wither" was translated as a generic
+ * English word ("凋れ"/"枯れる", inconsistent across runs) instead of vanilla's actual
+ * proper-noun translation "ウィザー".
+ *
+ * Fixed by extracting the key the same way EntityMixin/ItemTooltipTranslationHook do
+ * (TranslatableContents#getKey() if present, else null) and passing THAT to
+ * intercept(), instead of hardcoding null. This restores ARCHITECTURE.md §3's
+ * priority (existing translation first) for any boss whose name Component still
+ * carries a translation key - vanilla bosses, and any mod boss that sets its
+ * BossEvent's name from a Component.translatable(...) rather than a literal string.
+ * A mod boss using Component.literal("Some Boss Name") (no key) still falls through
+ * to the original keyless dynamic-text path unchanged - no regression for that case.
  */
 @Mixin(BossHealthOverlay.class)
 public abstract class BossHealthOverlayMixin {
@@ -68,6 +85,7 @@ public abstract class BossHealthOverlayMixin {
         if (!AllTranslatorCore.configManager().model().translateBossBarNames) {
             return original;
         }
-        return interceptor.intercept(original, null);
+        String key = (original.getContents() instanceof TranslatableContents tc) ? tc.getKey() : null;
+        return interceptor.intercept(original, key);
     }
 }
