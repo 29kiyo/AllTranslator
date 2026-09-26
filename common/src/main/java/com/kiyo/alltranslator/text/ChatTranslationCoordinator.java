@@ -204,11 +204,17 @@ public final class ChatTranslationCoordinator {
         // enabling server-side mode without every client also flipping their own local copy
         // of the same flag), but it is a reasonable, purely-local self-guard using information
         // the client already has, and it directly addresses the reproduced scenario above.
-        if (configManager.model().serverSideChatTranslationEnabled) {
+        // Phase 14 permanent fix (ARCHITECTURE.md section20.2): prefer the server-told
+        // status (pushed via ServerTranslationStatusPayloads) over this client's own
+        // local guess. The local flag is kept as an OR-fallback for the brief window
+        // before the server's payload arrives, or for any path that doesn't go through
+        // it. On an unmodded/older server this stays permanently false.
+        if (com.kiyo.alltranslator.client.ServerTranslationStatusClient.isServerSideActive()
+                || configManager.model().serverSideChatTranslationEnabled) {
             AllTranslator.LOGGER.debug(
-                    "Skipping client-side chat translation: serverSideChatTranslationEnabled is "
-                            + "set locally, assuming the server may already translate this message "
-                            + "(see ARCHITECTURE.md §20.2 known limitation).");
+                    "Skipping client-side chat translation: server-side translation is active "
+                            + "(server-told and/or local serverSideChatTranslationEnabled) - see "
+                            + "ARCHITECTURE.md §20.2 for the permanent-fix payload this now uses.");
             return;
         }
 

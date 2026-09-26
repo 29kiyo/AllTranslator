@@ -123,8 +123,6 @@ public final class ScoreboardManager {
     private static void updateScoreboard(MinecraftServer server) {
         ServerScoreboard scoreboard = server.getScoreboard();
         Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
-        com.kiyo.alltranslator.AllTranslator.LOGGER.info("[AT-DEBUG] updateScoreboard() called, objective="
-                + (objective != null) + ", enabledApis=" + AllTranslatorCore.apiManager().getEnabledConfigs().size());
         if (objective == null) return;
 
         Set<String> currentKeys = new HashSet<>();

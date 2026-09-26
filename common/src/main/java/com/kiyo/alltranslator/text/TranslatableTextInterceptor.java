@@ -108,7 +108,19 @@ public final class TranslatableTextInterceptor {
             knownOutputs.add(plain);
             return original;
         }
-        String cacheKey = targetLang + '\u0000' + plain;
+        // Bugfix (2026-09-24, real-world "garbled/mismatched tooltip" reports in
+        // Creative inventory): the cacheKey previously ignored `key` entirely, so
+        // computeIfAbsent() would silently reuse an already-completed future from a
+        // totally different translation key whenever two DIFFERENT keyed lookups
+        // happened to share the same plain source text (common for short generic
+        // template fragments, e.g. attribute-modifier lines, which recur across many
+        // unrelated items/mods). That meant a keyed call's own ExistingTranslationChecker
+        // result was skipped in favor of whichever unrelated key won the race. Including
+        // `key` in the cacheKey isolates every keyed lookup from every other one, while
+        // key == null (chat / color-code fragments / other genuinely keyless dynamic
+        // text) still shares by plain text alone, preserving the original intent of
+        // not re-requesting identical dynamic strings twice.
+        String cacheKey = targetLang + '\u0000' + (key == null ? "" : key + '\u0000') + plain;
         CompletableFuture<String> future = byCacheKey.computeIfAbsent(cacheKey,
                 k -> resolver.resolve(key, plain));
         if (!future.isDone()) {

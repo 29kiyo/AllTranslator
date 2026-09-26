@@ -129,7 +129,24 @@ public final class OpenAiCompatibleProvider implements TranslationProvider {
                                         + " - body: " + truncate(response.body(), 200),
                                 null, retryAfter);
                     }
-                    String translated = extractContent(response.body());
+                    String translated;
+                    try {
+                        translated = extractContent(response.body());
+                    } catch (RuntimeException e) {
+                        // Phase 14 (200+error-body classification, ARCHITECTURE.md 26.4): some
+                        // servers (e.g. LM Studio hitting an unknown endpoint) return HTTP 200
+                        // with an error JSON shape instead of the expected {"choices":[...]}.
+                        // Previously this JSON-navigation failure propagated as a bare
+                        // RuntimeException, which TranslationService's classifyError(cause, -1)
+                        // then mapped to TEMP_UNAVAILABLE (the httpStatus <= 0 fallback) instead
+                        // of the more accurate INVALID_RESPONSE ("JSON as read failed, or an
+                        // expected field is missing" is an INVALID_RESPONSE condition per
+                        // 26.4's judged-conservatively list).
+                        throw new TranslationException(ApiFailureType.INVALID_RESPONSE, status,
+                                "HTTP 200 but response body was not a valid chat-completions "
+                                        + "JSON shape from " + config.displayName()
+                                        + " - body: " + truncate(response.body(), 200));
+                    }
                     return new TranslationResult(translated, request.sourceText(), request.targetLang(),
                             config.id(), false, translated.equals(request.sourceText()));
                 });

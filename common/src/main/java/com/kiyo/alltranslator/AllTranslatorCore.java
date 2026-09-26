@@ -212,6 +212,7 @@ public final class AllTranslatorCore {
         com.kiyo.alltranslator.network.AllTranslatorNetworking.registerCommon();
         com.kiyo.alltranslator.network.ServerConfigNetworking.registerCommon();
         com.kiyo.alltranslator.network.PlayerLanguageSyncNetworking.registerCommon();
+        com.kiyo.alltranslator.network.ServerTranslationStatusNetworking.registerCommon();
 
         // Phase 9: /alltranslator (alias /at) commands, ARCHITECTURE.md §13. Registered via
         // Architectury's common CommandRegistrationEvent (verified via javap/sources: fires on

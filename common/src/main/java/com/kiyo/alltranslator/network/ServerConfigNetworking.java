@@ -142,6 +142,14 @@ public final class ServerConfigNetworking {
             }
             com.kiyo.alltranslator.server.ScoreboardManager.refreshEnabledState();
 
+            // Phase 14 permanent fix (ARCHITECTURE.md section20.2): a remote save can
+            // flip serverSideChatTranslationEnabled, so re-notify every connected
+            // player immediately instead of waiting for their next join.
+            net.minecraft.server.MinecraftServer mcServer = sender.level().getServer();
+            if (mcServer != null) {
+                ServerTranslationStatusNetworking.broadcastToAll(mcServer.getPlayerList().getPlayers(), parsed);
+            }
+
             AllTranslator.LOGGER.info("ServerConfigNetworking: config saved remotely by " + sender.getGameProfile().name());
             NetworkManager.sendToPlayer(sender, new ServerConfigPayloads.SaveResult(true, "Server configuration saved."));
         });

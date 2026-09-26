@@ -6,6 +6,7 @@ import com.kiyo.alltranslator.api.TranslationException;
 import com.kiyo.alltranslator.api.TranslationProvider;
 import com.kiyo.alltranslator.api.TranslationRequest;
 import com.kiyo.alltranslator.api.TranslationResult;
+import com.kiyo.alltranslator.AllTranslatorCore;
 import com.kiyo.alltranslator.config.CredentialStore;
 
 import java.util.Iterator;
@@ -289,8 +290,10 @@ public CompletableFuture<TranslationResult> translate(TranslationRequest request
         String rawKey = credentialStore.getRawKey(candidate.credentialId());
         AtomicInteger inFlightCounter = inFlightPerApi.computeIfAbsent(candidate.id(), k -> new AtomicInteger());
         int afterIncrement = inFlightCounter.incrementAndGet();
-        AllTranslator.LOGGER.info("[AT-DEBUG] inFlight++ for " + candidate.displayName()
-                + " (id=" + candidate.id() + ") -> " + afterIncrement);
+        if (AllTranslatorCore.configManager().model().debugLoggingEnabled) {
+            AllTranslator.LOGGER.info("[AT-DEBUG] inFlight++ for " + candidate.displayName()
+                    + " (id=" + candidate.id() + ") -> " + afterIncrement);
+        }
 
         // Phase 13 fix: acquire a real in-flight-request permit on asyncExecutor
         // (blocking is fine here - this runs on the dedicated 2-thread translation
@@ -310,8 +313,10 @@ public CompletableFuture<TranslationResult> translate(TranslationRequest request
                 .whenComplete((result, error) -> {
                     inFlightHttpRequests.release();
                     int afterDecrement = inFlightCounter.decrementAndGet();
-                    AllTranslator.LOGGER.info("[AT-DEBUG] inFlight-- for " + candidate.displayName()
-                            + " (id=" + candidate.id() + ") -> " + afterDecrement);
+                    if (AllTranslatorCore.configManager().model().debugLoggingEnabled) {
+                        AllTranslator.LOGGER.info("[AT-DEBUG] inFlight-- for " + candidate.displayName()
+                                + " (id=" + candidate.id() + ") -> " + afterDecrement);
+                    }
                     if (tookReservation && state != null) {
                         state.releaseProbe();
                     }

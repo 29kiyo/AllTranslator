@@ -39,6 +39,7 @@ public final class AllTranslatorClientCore {
         // registered here (confirmed physical client), never from the common
         // AllTranslatorCore.init() - see AllTranslatorNetworking's Javadoc.
         com.kiyo.alltranslator.network.AllTranslatorNetworking.registerClientReceiver();
+        com.kiyo.alltranslator.client.ServerTranslationStatusClient.registerReceiver();
         com.kiyo.alltranslator.client.RemoteConfigClientReceiver.register();
         TranslatableTextInterceptor tooltipInterceptor = new TranslatableTextInterceptor(
                 AllTranslatorCore.localizedTextResolver(), AllTranslatorCore.languageResolver());
@@ -111,6 +112,12 @@ public final class AllTranslatorClientCore {
         // does not carry (a language code only, never any config/API data).
         dev.architectury.event.events.client.ClientPlayerEvent.CLIENT_PLAYER_JOIN.register(
                 localPlayer -> com.kiyo.alltranslator.client.PlayerLanguageSyncClient.sendCurrentLanguage());
+        // Phase 14 permanent fix (ARCHITECTURE.md section20.2): reset the server-told
+        // "server-side translation active" flag on disconnect, so a stale true value
+        // from a previous server doesn't leak into the next connection (e.g. a vanilla
+        // server that never sends this payload at all).
+        dev.architectury.event.events.client.ClientPlayerEvent.CLIENT_PLAYER_QUIT.register(
+                localPlayer -> com.kiyo.alltranslator.client.ServerTranslationStatusClient.reset());
         // Phase 8: the shared L-keybinding that opens AllTranslatorConfigScreen. Uses
         // Architectury's common KeyMappingRegistry/ClientTickEvent (verified via javap -
         // no per-loader split needed), so registering it once here covers both Fabric

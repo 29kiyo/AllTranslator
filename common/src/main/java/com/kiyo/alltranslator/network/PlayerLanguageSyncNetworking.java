@@ -31,6 +31,12 @@ public final class PlayerLanguageSyncNetworking {
             var settingsManager = AllTranslatorCore.playerTranslationSettingsManager();
             if (settingsManager == null) return;
             settingsManager.setAutoSyncedLanguage(sender.getUUID(), payload.languageCode());
+
+            // Phase 14 permanent fix (ARCHITECTURE.md section20.2): piggyback on this
+            // same join-time C2S payload to tell the client back whether server-side
+            // chat translation is currently active, so ChatTranslationCoordinator can
+            // skip its own pass without relying on the client's own local guess.
+            ServerTranslationStatusNetworking.sendToPlayer(sender, AllTranslatorCore.configManager().model());
         });
     }
 }
