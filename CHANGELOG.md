@@ -3,7 +3,7 @@
 このプロジェクトは [Keep a Changelog](https://keepachangelog.com/) の
 形式にゆるく従います。
 
-## [Unreleased]
+## [v1.1.0] - 2026-09-26
 
 ### Added
 
