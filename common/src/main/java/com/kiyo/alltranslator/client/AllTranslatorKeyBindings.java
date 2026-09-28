@@ -67,7 +67,7 @@ public final class AllTranslatorKeyBindings {
         // rebind on upgrade.
         openConfigKey = new KeyMapping(
                 "key.alltranslator.open_config",
-                InputConstants.Type.KEYSYM,
+                InputConstants.Type.KEYBOARD,
                 InputConstants.KEY_M,
                 category);
         KeyMappingRegistry.register(openConfigKey);
@@ -78,7 +78,7 @@ public final class AllTranslatorKeyBindings {
         // the config screen or chat.
         refreshKey = new KeyMapping(
                 "key.alltranslator.refresh",
-                InputConstants.Type.KEYSYM,
+                InputConstants.Type.KEYBOARD,
                 InputConstants.KEY_K,
                 category);
         KeyMappingRegistry.register(refreshKey);

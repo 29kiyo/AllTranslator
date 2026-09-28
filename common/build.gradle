@@ -14,5 +14,5 @@ dependencies {
 
     // Phase 14: JEI integration (ARCHITECTURE.md §26.5). compileOnly: optional at runtime,
     // never bundled. Only AllTranslatorJeiPlugin may reference these classes.
-    compileOnly "mezz.jei:jei-$rootProject.minecraft_version-common-api:$rootProject.jei_version"
+    // compileOnly "mezz.jei:jei-$rootProject.minecraft_version-common-api:$rootProject.jei_version" // TEMP: MC 26.3 investigation, JEI 26.3 build unknown
 }

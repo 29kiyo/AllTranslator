@@ -21,6 +21,9 @@ loom {
         server {
             runDir "run-server"
         }
+        client {
+            runDir "run-26.3"
+        }
     }
 }
 

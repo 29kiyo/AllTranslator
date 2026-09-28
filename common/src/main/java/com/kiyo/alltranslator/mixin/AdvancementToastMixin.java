@@ -53,11 +53,11 @@ public abstract class AdvancementToastMixin {
             method = "extractRenderState",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/advancements/DisplayInfo;getTitle()Lnet/minecraft/network/chat/Component;"
+                    target = "Lnet/minecraft/advancements/DisplayInfo;title()Lnet/minecraft/network/chat/Component;"
             )
     )
     private Component alltranslator$translateToastTitle(DisplayInfo displayInfo) {
-        Component original = displayInfo.getTitle();
+        Component original = displayInfo.title();
         TranslatableTextInterceptor interceptor = AllTranslatorCore.advancementToastInterceptor();
         if (interceptor == null) {
             return original;
