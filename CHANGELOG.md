@@ -3,7 +3,7 @@
 このプロジェクトは [Keep a Changelog](https://keepachangelog.com/) の
 形式にゆるく従います。
 
-## [v1.1.0] - 2026-09-26
+## [1.0.0] - 2026-09-29
 
 ### Added
 
@@ -118,34 +118,3 @@
   (表示だけを消す設定は実装しない方針。JEIの設定「Search Extra Ingredient Names」で、検索と
   表示の両方をオフにできる)
 
-## [v1.0.0] - 初回リリース
-
-### 追加
-
-- 翻訳コア: 複数API設定・優先度付き自動フェイルオーバー・レート制限/クォータ/
-  認証失敗の分類・クールダウン復帰
-- 対応プロバイダ: OpenAI互換、DeepL、Google Cloud Translation v2、
-  Google Translate Web版(無償・非公式)
-- 既存翻訳の優先使用(Minecraft/mod言語ファイル、ユーザー自作言語ファイル)
-- アイテム名・ツールチップ・エンティティ名の翻訳
-- チャット翻訳(クライアント側既定、サーバー側per-playerモードはオプトイン)
-- per-playerサーバー言語設定・ON/OFF
-- 永続キャッシュ(ワールドセーブ内、チャットは対象外)
-- コマンド `/alltranslator`(`/at`) enable/disable/status/language
-- 設定UI(L キー、Mod Menu、NeoForge Configボタン)
-- GitHub Actions によるタグベースのリリースパイプライン
-
-### 既知の制限
-
-- 独自Screen/Widgetフレームワーク(libIPN・UI Lib)を使うMod: libIPNは実機確認済み、UI Libは
-  検出のみ実機確認済み(実際の翻訳動作は未確認)。MaliLib・Sodium・Cloth Config・YACL・owo-libは
-  対応不可(公開APIなし)。
-- Google Translate Web版(無償・非公式)は外部エンドポイント側の制約により予告なくレート制限が
-  かかる場合がある。
-- DeepL・Google Cloud Translation v2は実際のAPIキーでの疎通確認は未実施(モックサーバー
-  検証のみ)。
-- ローカルLLM(7Bクラス量子化モデル)は固有名詞・専門用語の翻訳品質にばらつきがある。
-  `config/alltranslator/lang/<code>.json`での手動上書きを推奨。
-- LAN参加(非ホスト)クライアントは翻訳結果の永続キャッシュを持たない(メモリキャッシュのみ)。
-- サーバー側per-playerチャット翻訳のマルチプレイ実翻訳動作は未確認。
-- Anthropic(Claude)・Geminiプロバイダは実際のAPIキーでの動作確認は未実施。
