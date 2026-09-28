@@ -1,6 +1,9 @@
 package com.kiyo.alltranslator.lang;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.kiyo.alltranslator.AllTranslator;
 import dev.architectury.platform.Platform;
@@ -78,7 +81,7 @@ public final class MinecraftLanguageDataSource implements LanguageDataSource {
                     "lang", location -> location.getPath().endsWith(targetFileName));
             for (Resource resource : resources.values()) {
                 try (Reader reader = new InputStreamReader(resource.open(), StandardCharsets.UTF_8)) {
-                    Map<String, String> parsed = GSON.fromJson(reader, MAP_TYPE);
+                    Map<String, String> parsed = parseLenient(reader);
                     if (parsed != null) merged.putAll(parsed);
                 } catch (Exception e) {
                     AllTranslator.LOGGER.warn("Failed to parse lang resource for " + langCode, e);
@@ -88,5 +91,25 @@ public final class MinecraftLanguageDataSource implements LanguageDataSource {
             AllTranslator.LOGGER.warn("Failed to list lang resources for " + langCode, e);
         }
         return merged;
+    }
+
+    /**
+     * Lenient lang-file parse: unlike Gson's Map adapter, JsonParser tolerates duplicate keys
+     * (later wins, like vanilla), so one mod's stray duplicate "_comment" no longer discards
+     * the whole file. Non-string values are skipped.
+     */
+    private static Map<String, String> parseLenient(Reader reader) {
+        Map<String, String> out = new java.util.HashMap<>();
+        JsonElement root = JsonParser.parseReader(reader);
+        if (root != null && root.isJsonObject()) {
+            JsonObject obj = root.getAsJsonObject();
+            for (Map.Entry<String, JsonElement> e : obj.entrySet()) {
+                JsonElement v = e.getValue();
+                if (v != null && v.isJsonPrimitive() && v.getAsJsonPrimitive().isString()) {
+                    out.put(e.getKey(), v.getAsString());
+                }
+            }
+        }
+        return out;
     }
 }
