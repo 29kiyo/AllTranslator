@@ -67,6 +67,7 @@ public final class TranslationService {
      * derived stage alone would NOT have worked.
      */
     private final InFlightCallRegistry inFlightCallRegistry = new InFlightCallRegistry();
+    private final java.util.concurrent.atomic.AtomicLong cancelEpoch = new java.util.concurrent.atomic.AtomicLong();
 
     /**
      * Phase 14 (ARCHITECTURE.md §26.4): how candidates are ordered. Read on every
@@ -300,6 +301,7 @@ public CompletableFuture<TranslationResult> translate(TranslationRequest request
         // executor, never the main/render thread) BEFORE kicking off the actual
         // HTTP call, and release it in whenComplete regardless of outcome. This is
         // what actually bounds concurrent HTTP requests - see class Javadoc.
+        final long epochAtSchedule = cancelEpoch.get();
         CompletableFuture.runAsync(() -> {
             try {
                 inFlightHttpRequests.acquireUninterruptibly();
@@ -308,7 +310,13 @@ public CompletableFuture<TranslationResult> translate(TranslationRequest request
                 // exceptions), but never let permit bookkeeping crash a translation.
             }
         }, asyncExecutor)
-                .thenCompose(v -> provider.translate(request, candidate, rawKey, inFlightCallRegistry))
+                .thenCompose(v -> {
+                    if (cancelEpoch.get() != epochAtSchedule) {
+                        return CompletableFuture.<TranslationResult>failedFuture(
+                                new java.util.concurrent.CancellationException("cancelled while queued"));
+                    }
+                    return provider.translate(request, candidate, rawKey, inFlightCallRegistry);
+                })
                 .thenApply(r -> requireValidResult(request, candidate, r))
                 .whenComplete((result, error) -> {
                     inFlightHttpRequests.release();
@@ -425,6 +433,19 @@ public CompletableFuture<TranslationResult> translate(TranslationRequest request
         pendingRequests.clear();
         int resetApis = apiManager.refreshAll();
         return new RefreshResult(cancelledCalls, resetApis);
+    }
+
+    /**
+     * Force-cancels in-flight HTTP calls and drops duplicate-merge bookkeeping,
+     * WITHOUT resetting ApiState cooldown/rate-limit status (unlike refresh()).
+     * For UI cancel actions (e.g. ModJarLangConfirmScreen) where the goal is only
+     * "stop sending requests now", not "pretend every API is healthy again".
+     */
+    public int cancelInFlightOnly() {
+        cancelEpoch.incrementAndGet();
+        int cancelledCalls = inFlightCallRegistry.cancelAll();
+        pendingRequests.clear();
+        return cancelledCalls;
     }
 
     /** Summary of a refresh() call, for the command to report back to the user. */
