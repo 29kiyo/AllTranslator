@@ -133,7 +133,7 @@ public final class ModJarLangConfirmScreen extends Screen {
         this.addRenderableWidget(neverButton);
 
         cancelButton = Button.builder(Component.translatable("gui.alltranslator.modjarlang.cancel"),
-                b -> cancelRequested = true).pos(cx - 75, row2).size(150, 20).build();
+                b -> { cancelRequested = true; AllTranslatorCore.translationService().cancelInFlightOnly(); }).pos(cx - 75, row2).size(150, 20).build();
         this.addRenderableWidget(cancelButton);
 
         reloadButton = Button.builder(Component.translatable("gui.alltranslator.modjarlang.reload"),
@@ -233,7 +233,7 @@ public final class ModJarLangConfirmScreen extends Screen {
                 if (cancelRequested) {
                     return CompletableFuture.<Void>completedFuture(null);
                 }
-                return coordinator.translateIfNeeded(p.candidate(), targetLang)
+                return coordinator.translateIfNeeded(p.candidate(), targetLang, () -> cancelRequested)
                         .<Void>handle((written, ex) -> {
                             if (ex == null && Boolean.TRUE.equals(written)) {
                                 generated.incrementAndGet();
@@ -275,6 +275,10 @@ public final class ModJarLangConfirmScreen extends Screen {
 
     @Override
     public void onClose() {
+        if (phase == Phase.RUNNING) {
+            cancelRequested = true;
+            AllTranslatorCore.translationService().cancelInFlightOnly();
+        }
         closeScreen();
     }
 

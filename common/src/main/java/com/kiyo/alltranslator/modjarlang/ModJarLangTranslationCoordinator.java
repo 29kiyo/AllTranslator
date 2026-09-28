@@ -55,6 +55,11 @@ public final class ModJarLangTranslationCoordinator {
      * could not be read/parsed).
      */
     public CompletableFuture<Boolean> translateIfNeeded(ModJarLangCandidate candidate, String targetLangCode) {
+        return translateIfNeeded(candidate, targetLangCode, () -> false);
+    }
+
+    public CompletableFuture<Boolean> translateIfNeeded(ModJarLangCandidate candidate, String targetLangCode,
+                                                        java.util.function.BooleanSupplier cancelled) {
         String contentHash;
         Map<String, String> sourceEntries;
         try {
@@ -112,6 +117,9 @@ public final class ModJarLangTranslationCoordinator {
         Map.Entry<String, String> first = items.get(0);
         return translateOne.apply(first.getKey(), first.getValue())
                 .thenCompose(w -> {
+                    if (cancelled.getAsBoolean()) {
+                        return CompletableFuture.<Void>completedFuture(null);
+                    }
                     List<CompletableFuture<Void>> futures = new ArrayList<>(items.size());
                     for (int i = 1; i < items.size(); i++) {
                         futures.add(translateOne.apply(items.get(i).getKey(), items.get(i).getValue()));
@@ -119,6 +127,9 @@ public final class ModJarLangTranslationCoordinator {
                     return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
                 })
                 .thenApply(v -> {
+                    if (cancelled.getAsBoolean()) {
+                        return false;
+                    }
                     long changed = translated.entrySet().stream()
                             .filter(e -> !e.getValue().equals(sourceSnapshot.get(e.getKey())))
                             .count();
