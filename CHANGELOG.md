@@ -3,10 +3,13 @@
 このプロジェクトは [Keep a Changelog](https://keepachangelog.com/) の
 形式にゆるく従います。
 
-## [v1.1.0] - 2026-09-26
+## [1.0.0] - 2026-09-29
 
 ### Added
 
+- Minecraft 26.3対応(Fabric/NeoForge)。破壊的API変更2件(`InputConstants.Type.KEYSYM`
+  廃止→`KEYBOARD`、`DisplayInfo`のrecord化に伴う`getTitle()`→`title()`)に対応。
+  JEI連携も26.3向け(31.x系)で動作確認済み
 - 翻訳対象の項目別ON/OFF設定画面(アイテム名、ツールチップ、エンティティ名、チャット、
   `/tellraw`、DM・`/title`、実績トースト、レシピトースト、ボスバー名、アクティブエフェクト
   一覧)。サーバー管理者向けの設定画面にも同じ項目を追加
@@ -64,6 +67,11 @@
 
 ### Fixed
 
+- Mod jar一括翻訳のキャンセル/ESCが効かず、画面を閉じた後もリクエストが進み続ける不具合を修正。
+  API側のクールダウン状態はそのままに、翻訳待ち・進行中のリクエストだけを止める仕組みを追加
+- NeoForge 26.3が同梱する言語ファイルの重複キー(`_comment`)でファイル全体の読み込みが
+  失敗する不具合を修正(バニラ同様、重複キーは後勝ちで許容するよう変更)
+- 上記2件はMC 26.2でも再現する既存の不具合だったため、26.2向けリリースにも同じ修正を反映済み
 - サーバー管理者のみがサーバー側翻訳を有効にし、個々のクライアントがローカル設定を追随して
   いない場合の二重翻訳を、新規S2C通知により恒久的に修正(以前の緩和策はシングルプレイのみ
   有効だった)。Fabric/NeoForge両方で確認済み
@@ -118,34 +126,3 @@
   (表示だけを消す設定は実装しない方針。JEIの設定「Search Extra Ingredient Names」で、検索と
   表示の両方をオフにできる)
 
-## [v1.0.0] - 初回リリース
-
-### 追加
-
-- 翻訳コア: 複数API設定・優先度付き自動フェイルオーバー・レート制限/クォータ/
-  認証失敗の分類・クールダウン復帰
-- 対応プロバイダ: OpenAI互換、DeepL、Google Cloud Translation v2、
-  Google Translate Web版(無償・非公式)
-- 既存翻訳の優先使用(Minecraft/mod言語ファイル、ユーザー自作言語ファイル)
-- アイテム名・ツールチップ・エンティティ名の翻訳
-- チャット翻訳(クライアント側既定、サーバー側per-playerモードはオプトイン)
-- per-playerサーバー言語設定・ON/OFF
-- 永続キャッシュ(ワールドセーブ内、チャットは対象外)
-- コマンド `/alltranslator`(`/at`) enable/disable/status/language
-- 設定UI(L キー、Mod Menu、NeoForge Configボタン)
-- GitHub Actions によるタグベースのリリースパイプライン
-
-### 既知の制限
-
-- 独自Screen/Widgetフレームワーク(libIPN・UI Lib)を使うMod: libIPNは実機確認済み、UI Libは
-  検出のみ実機確認済み(実際の翻訳動作は未確認)。MaliLib・Sodium・Cloth Config・YACL・owo-libは
-  対応不可(公開APIなし)。
-- Google Translate Web版(無償・非公式)は外部エンドポイント側の制約により予告なくレート制限が
-  かかる場合がある。
-- DeepL・Google Cloud Translation v2は実際のAPIキーでの疎通確認は未実施(モックサーバー
-  検証のみ)。
-- ローカルLLM(7Bクラス量子化モデル)は固有名詞・専門用語の翻訳品質にばらつきがある。
-  `config/alltranslator/lang/<code>.json`での手動上書きを推奨。
-- LAN参加(非ホスト)クライアントは翻訳結果の永続キャッシュを持たない(メモリキャッシュのみ)。
-- サーバー側per-playerチャット翻訳のマルチプレイ実翻訳動作は未確認。
-- Anthropic(Claude)・Geminiプロバイダは実際のAPIキーでの動作確認は未実施。
