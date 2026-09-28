@@ -14,13 +14,13 @@ Translates Minecraft, mod language files, items, tooltips, blocks, entities, UI,
 [[dependencies.alltranslator]]
 modId = "neoforge"
 type = "required"
-versionRange = "[26.2.0,)"
+versionRange = "[26.3.0,)"
 ordering = "NONE"
 side = "BOTH"
 [[dependencies.alltranslator]]
 modId = "minecraft"
 type = "required"
-versionRange = "[26.2,)"
+versionRange = "[26.3,)"
 ordering = "NONE"
 side = "BOTH"
 [[dependencies.alltranslator]]

@@ -77,7 +77,10 @@ configurations {
 loom {
     runs {
         server {
-            runDir "run-server"
+            runDir "run-server-26.3"
+        }
+        client {
+            runDir "run-26.3"
         }
     }
 }
