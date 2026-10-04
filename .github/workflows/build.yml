@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Version without the mc suffix (e.g. v1.0.0). The Minecraft version is read from this branch''s gradle.properties and appended automatically (e.g. v1.0.0-mc26.3).'
+        description: 'Version without the mc suffix (e.g. v1.0.0). The Minecraft version is read from this branch''s gradle.properties and appended automatically (e.g. v1.0.0).'
         required: true
         type: string
 
