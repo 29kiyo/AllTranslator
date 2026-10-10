@@ -11,7 +11,7 @@
     "homepage": "https://github.com/29kiyo/alltranslator",
     "sources": "https://github.com/29kiyo/alltranslator"
   },
-  "license": "TBD",
+  "license": "LGPL-3.0",
   "icon": "assets/alltranslator/icon.png",
   "environment": "*",
   "entrypoints": {
